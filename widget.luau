@@ -1,0 +1,28 @@
+local function show(status)
+    local state = status and status.state or "idle"
+
+    if state == "checking" then
+        barWidget.setText("Nix …")
+    elseif state == "current" then
+        barWidget.setText("Nix ✓")
+    elseif state == "updates" then
+        barWidget.setText("Nix ↑")
+    elseif state == "error" then
+        barWidget.setText("Nix !")
+    else
+        barWidget.setText("Nix")
+    end
+end
+
+function update()
+    show(noctalia.state.get("status"))
+end
+
+noctalia.state.watch("status", function(status)
+    show(status)
+end)
+
+function onClick()
+    local n = noctalia.state.get("check-request") or 0
+    noctalia.state.set("check-request", n + 1)
+end

@@ -1,0 +1,13 @@
+id = "local/nix-status"
+name = "Nix Status"
+version = "0.1.0"
+plugin_api = 24
+author = "local"
+
+[[service]]
+id = "service"
+entry = "service.luau"
+
+[[widget]]
+id = "status"
+entry = "widget.luau"

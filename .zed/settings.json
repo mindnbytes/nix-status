@@ -1,0 +1,21 @@
+{
+  "lsp": {
+    "luau-lsp": {
+      "settings": {
+        "roblox": {
+          "enabled": false
+        },
+        "luau-lsp": {
+          "sourcemap": {
+            "enabled": false
+          },
+          "types": {
+            "definitionFiles": [
+              "noctalia.d.luau"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
