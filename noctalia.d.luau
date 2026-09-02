@@ -36,6 +36,7 @@ type NoctaliaPanel = {
 
 type NoctaliaApi = {
     expandPath: (path: string) -> string,
+    formatTime: (pattern: string, unixSeconds: number) -> string,
     json: NoctaliaJson,
     pluginDataDir: () -> (string?, string?),
     readFile: (path: string) -> (string?, string?),
@@ -51,5 +52,7 @@ declare panel: NoctaliaPanel
 declare ui: NoctaliaUi
 
 declare barWidget: {
+    setImage: (path: string, preserveAspect: boolean, width: number, height: number) -> (),
     setText: (text: string) -> (),
+    setTooltip: (text: string) -> (),
 }
