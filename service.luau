@@ -2,8 +2,12 @@ local FLAKE_DIR = noctalia.expandPath("~/Projects/nixos-vm/nixos")
 
 local realLock = FLAKE_DIR .. "/flake.lock"
 
-local dataDir = noctalia.pluginDataDir()
-local candidateLock = dataDir .. "/candidate-flake.lock"
+local dataDir, dataDirErr = noctalia.pluginDataDir()
+local candidateLock: string? = nil
+
+if dataDir ~= nil then
+    candidateLock = dataDir .. "/candidate-flake.lock"
+end
 
 local running = false
 
@@ -92,17 +96,23 @@ local function checkUpdates()
         return
     end
 
+    local candidateLockPath = candidateLock
+    if candidateLockPath == nil then
+        publish("error", dataDirErr or "Could not access the plugin data directory")
+        return
+    end
+
     running = true
     publish("checking", nil)
 
-    noctalia.removeFile(candidateLock)
+    noctalia.removeFile(candidateLockPath)
 
     local started = noctalia.runAsync({
         "nix",
         "flake",
         "update",
         "--flake", FLAKE_DIR,
-        "--output-lock-file", candidateLock,
+        "--output-lock-file", candidateLockPath,
     }, function(result)
 
         if result.exitCode ~= 0 then
@@ -112,7 +122,7 @@ local function checkUpdates()
         end
 
         local current, currentReadErr = noctalia.readFile(realLock)
-        local candidate, candidateReadErr = noctalia.readFile(candidateLock)
+        local candidate, candidateReadErr = noctalia.readFile(candidateLockPath)
 
         if current == nil then
             publish("error", currentReadErr or "Could not read the current flake lock file")
@@ -142,7 +152,7 @@ local function checkUpdates()
                 end
             end
         end
-        noctalia.removeFile(candidateLock)
+        noctalia.removeFile(candidateLockPath)
         running = false
     end)
 
