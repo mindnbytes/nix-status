@@ -1,16 +1,21 @@
+local generatedLogo =
+    noctalia.expandPath("~/.cache/noctalia/nix-logo.svg")
+
 local function show(status)
+    barWidget.setImage(generatedLogo, true, 28, 28)
+
     local state = status and status.state or "idle"
 
-    if state == "checking" then
-        barWidget.setText("Nix …")
-    elseif state == "current" then
-        barWidget.setText("Nix ✓")
+    if state == "current" then
+        barWidget.setTooltip("NixOS · up to date")
     elseif state == "updates" then
-        barWidget.setText("Nix ↑")
+        barWidget.setTooltip("NixOS · updates available")
+    elseif state == "checking" then
+        barWidget.setTooltip("Checking Nix updates…")
     elseif state == "error" then
-        barWidget.setText("Nix !")
+        barWidget.setTooltip("NixOS · check failed")
     else
-        barWidget.setText("Nix")
+        barWidget.setTooltip("NixOS")
     end
 end
 
