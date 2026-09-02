@@ -1,6 +1,6 @@
 id = "local/nix-status"
 name = "Nix Status"
-version = "0.1.0"
+version = "0.2.0"
 plugin_api = 24
 author = "local"
 
@@ -11,3 +11,9 @@ entry = "service.luau"
 [[widget]]
 id = "status"
 entry = "widget.luau"
+
+[[panel]]
+id = "details"
+entry = "panel.luau"
+placement = "attached"
+open_near_click = true

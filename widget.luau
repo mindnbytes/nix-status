@@ -23,6 +23,5 @@ noctalia.state.watch("status", function(status)
 end)
 
 function onClick()
-    local n = noctalia.state.get("check-request") or 0
-    noctalia.state.set("check-request", n + 1)
+    noctalia.togglePanel("local/nix-status:details")
 end
