@@ -111,29 +111,35 @@ local function checkUpdates()
             return
         end
 
-        local current = noctalia.readFile(realLock)
-        local candidate = noctalia.readFile(candidateLock)
+        local current, currentReadErr = noctalia.readFile(realLock)
+        local candidate, candidateReadErr = noctalia.readFile(candidateLock)
 
-        local currentLock, currentErr = noctalia.json.decode(current)
-        local candidateLockData, candidateErr = noctalia.json.decode(candidate)
-
-        if currentLock == nil then
-            publish("error", currentErr)
-        elseif candidateLockData == nil then
-            publish("error", candidateErr)
+        if current == nil then
+            publish("error", currentReadErr or "Could not read the current flake lock file")
+        elseif candidate == nil then
+            publish("error", candidateReadErr or "Could not read the candidate flake lock file")
         else
-            local changedInputs = getChangedInputs(currentLock, candidateLockData)
+            local currentLock, currentErr = noctalia.json.decode(current)
+            local candidateLockData, candidateErr = noctalia.json.decode(candidate)
 
-            if #changedInputs == 0 then
-                noctalia.state.set("status", {
-                    state = "current",
-                    changedInputs = {},
-                })
+            if currentLock == nil then
+                publish("error", currentErr)
+            elseif candidateLockData == nil then
+                publish("error", candidateErr)
             else
-                noctalia.state.set("status", {
-                    state = "updates",
-                    changedInputs = changedInputs,
-                })
+                local changedInputs = getChangedInputs(currentLock, candidateLockData)
+
+                if #changedInputs == 0 then
+                    noctalia.state.set("status", {
+                        state = "current",
+                        changedInputs = {},
+                    })
+                else
+                    noctalia.state.set("status", {
+                        state = "updates",
+                        changedInputs = changedInputs,
+                    })
+                end
             end
         end
         noctalia.removeFile(candidateLock)
