@@ -114,27 +114,27 @@ local function checkUpdates()
         local candidate = noctalia.readFile(candidateLock)
 
         local currentLock, currentErr = noctalia.json.decode(current)
-local candidateLock, candidateErr = noctalia.json.decode(candidate)
+        local candidateLockData, candidateErr = noctalia.json.decode(candidate)
 
-if currentLock == nil then
-    publish("error", currentErr)
-elseif candidateLock == nil then
-    publish("error", candidateErr)
-else
-    local changedInputs = getChangedInputs(currentLock, candidateLock)
+        if currentLock == nil then
+            publish("error", currentErr)
+        elseif candidateLockData == nil then
+            publish("error", candidateErr)
+        else
+            local changedInputs = getChangedInputs(currentLock, candidateLockData)
 
-    if #changedInputs == 0 then
-        noctalia.state.set("status", {
-            state = "current",
-            changedInputs = {},
-        })
-    else
-        noctalia.state.set("status", {
-            state = "updates",
-            changedInputs = changedInputs,
-        })
-    end
-end
+            if #changedInputs == 0 then
+                noctalia.state.set("status", {
+                    state = "current",
+                    changedInputs = {},
+                })
+            else
+                noctalia.state.set("status", {
+                    state = "updates",
+                    changedInputs = changedInputs,
+                })
+            end
+        end
         noctalia.removeFile(candidateLock)
         running = false
     end)
