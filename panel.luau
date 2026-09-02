@@ -7,6 +7,7 @@ end
 
 local function render()
     local children = {}
+    local isChecking = status ~= nil and status.state == "checking"
 
     table.insert(children, ui.label({
         text = "NixOS Updates",
@@ -73,6 +74,7 @@ local function render()
 
     table.insert(children, ui.button({
         text = "Check Updates",
+        enabled = not isChecking,
         onClick = "onCheckClicked",
     }))
 
