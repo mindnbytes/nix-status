@@ -162,8 +162,10 @@ local function checkUpdates()
     end
 end
 
--- Initial state.
-publish("idle", nil)
+-- Preserve the latest status when only the service runtime reloads.
+if noctalia.state.get("status") == nil then
+    publish("idle", nil)
+end
 
 -- Widget sends an incrementing number here whenever clicked.
 noctalia.state.watch("check-request", function(_)
