@@ -23,6 +23,7 @@ local function formatDate(timestamp)
     return noctalia.formatTime("%b %d", timestamp)
 end
 
+-- Lock traversal assumes the canonical structure produced by Nix.
 local function getRootInputs(lock)
     local rootNode = lock.nodes[lock.root]
     return rootNode.inputs
