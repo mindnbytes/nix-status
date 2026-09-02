@@ -162,8 +162,9 @@ local function checkUpdates()
     end
 end
 
--- Preserve the latest status when only the service runtime reloads.
-if noctalia.state.get("status") == nil then
+-- Preserve completed results, but do not retain a check whose callback was lost on reload.
+local existingStatus = noctalia.state.get("status")
+if existingStatus == nil or existingStatus.state == "checking" then
     publish("idle", nil)
 end
 
