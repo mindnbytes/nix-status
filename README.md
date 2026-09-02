@@ -1,0 +1,16 @@
+# Nix Status
+
+A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that checks a Nix flake for input updates without modifying its current `flake.lock`.
+
+## Setup
+
+1. Copy this directory into your Noctalia plugins directory.
+2. Set `FLAKE_DIR` in `service.luau` to your flake directory.
+3. Add the NixOS logo variants (`nix-logo.svg`, `nix-logo-updates.svg`, and `nix-logo-error.svg`) to your Noctalia templates, declare them in Noctalia's `config.toml`, then run `noctalia msg templates-apply`.
+4. Enable the `Nix Status` plugin and add its widget to your bar.
+
+Click the widget to view changed inputs or run a new check. Requires the `nix` command with network access.
+
+## Branding
+
+The widget uses the NixOS logo for clear visual identification. Use artwork from the official [NixOS branding page](https://nixos.org/branding/) and follow its branding and licensing guidance.
