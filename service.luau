@@ -21,6 +21,7 @@ local function publish(state, message)
     })
 end
 
+-- nix flake update check
 local function checkUpdates()
     if running then
         return
@@ -37,53 +38,64 @@ local function checkUpdates()
 
     noctalia.removeFile(candidateLockPath)
 
-    local started = noctalia.runAsync({
-        "nix",
-        "flake",
-        "update",
-        "--flake", FLAKE_DIR,
-        "--output-lock-file", candidateLockPath,
-    }, function(result)
+    local cmd = [[
+    if nix flake update --flake ]]
+        .. nix.shellQuote(FLAKE_DIR)
+        .. " --output-lock-file "
+        .. nix.shellQuote(candidateLockPath)
+        .. [[; then
+        printf '%s\n' '__NOCTALIA_NIX_UPDATE_SUCCESS__'
+    else
+        printf '%s\n' '__NOCTALIA_NIX_UPDATE_FAILURE__'
+    fi
+    ]]
 
-        if result.exitCode ~= 0 then
-            publish("error", result.stderr)
+    local started = noctalia.runStream(cmd, function(line)
+        line = line:gsub("[\r\n]+$", "")
+
+        if line == nix.UPDATE_FAILURE then
+            publish("error", "Nix update check failed")
+            noctalia.removeFile(candidateLockPath)
             running = false
-            return
-        end
 
-        local current, currentReadErr = noctalia.readFile(realLock)
-        local candidate, candidateReadErr = noctalia.readFile(candidateLockPath)
+        elseif line == nix.UPDATE_SUCCESS then
 
-        if current == nil then
-            publish("error", currentReadErr or "Could not read the current flake lock file")
-        elseif candidate == nil then
-            publish("error", candidateReadErr or "Could not read the candidate flake lock file")
-        else
-            local currentLock, currentErr = noctalia.json.decode(current)
-            local candidateLockData, candidateErr = noctalia.json.decode(candidate)
+            local current, currentReadErr = noctalia.readFile(realLock)
+            local candidate, candidateReadErr = noctalia.readFile(candidateLockPath)
 
-            if currentLock == nil then
-                publish("error", currentErr)
-            elseif candidateLockData == nil then
-                publish("error", candidateErr)
+            if current == nil then
+                publish("error", currentReadErr or "Could not read the current flake lock file")
+            elseif candidate == nil then
+                publish("error", candidateReadErr or "Could not read the candidate flake lock file")
             else
-                local changedInputs = nix.getChangedInputs(currentLock, candidateLockData)
+                local currentLock, currentErr = noctalia.json.decode(current)
+                local candidateLockData, candidateErr = noctalia.json.decode(candidate)
 
-                if #changedInputs == 0 then
-                    noctalia.state.set("status", {
-                        state = "current",
-                        changedInputs = {},
-                    })
+                if currentLock == nil then
+                    publish("error", currentErr)
+                elseif candidateLockData == nil then
+                    publish("error", candidateErr)
                 else
-                    noctalia.state.set("status", {
-                        state = "updates",
-                        changedInputs = changedInputs,
-                    })
+                    local changedInputs = nix.getChangedInputs(currentLock, candidateLockData)
+
+                    if #changedInputs == 0 then
+                        noctalia.state.set("status", {
+                            state = "current",
+                            changedInputs = {},
+                        })
+                    else
+                        noctalia.state.set("status", {
+                            state = "updates",
+                            changedInputs = changedInputs,
+                        })
+                    end
                 end
             end
+            noctalia.removeFile(candidateLockPath)
+            running = false
+        else
+            noctalia.log("nix flake update: " .. line)
         end
-        noctalia.removeFile(candidateLockPath)
-        running = false
     end)
 
     if not started then
@@ -98,7 +110,7 @@ if existingStatus == nil or existingStatus.state == "checking" then
     publish("idle", nil)
 end
 
--- Widget sends an incrementing number here whenever clicked.
+-- Panel check button sends an incrementing number here whenever clicked.
 noctalia.state.watch("check-request", function(_)
     checkUpdates()
 end)

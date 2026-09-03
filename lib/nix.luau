@@ -15,6 +15,9 @@ local function formatDate(timestamp)
     return noctalia.formatTime("%b %d", timestamp)
 end
 
+local function shellQuote(value: string): string
+    return "'" .. value:gsub("'", "'\\''") .. "'"
+end
 -- Nix Related
 
 -- Lock traversal assumes the canonical structure produced by Nix.
@@ -78,4 +81,7 @@ end
 
 return {
     getChangedInputs = getChangedInputs,
+    shellQuote = shellQuote,
+    UPDATE_SUCCESS = "__NOCTALIA_NIX_UPDATE_SUCCESS__",
+    UPDATE_FAILURE = "__NOCTALIA_NIX_UPDATE_FAILURE__",
 }
