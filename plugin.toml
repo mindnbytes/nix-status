@@ -1,8 +1,9 @@
-id = "local/nix-status"
+id = "mindnbytes/nix-status"
 name = "Nix Status"
 version = "0.2.0"
 plugin_api = 24
-author = "local"
+author = "mindnbytes"
+dependencies = ["nix"]
 
 [[service]]
 id = "service"
