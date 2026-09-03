@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="https://raw.githubusercontent.com/noctalia-dev/official-plugins"
+ref="6ed300d05c3967ed9d8b9f43f494545c5f78109d"
+
+curl -fsSL "$repo/$ref/noctalia.d.luau" -o noctalia.d.luau
+curl -fsSL "$repo/$ref/.luaurc" -o .luaurc
