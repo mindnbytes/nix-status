@@ -1,4 +1,4 @@
-id = "mindnbytes/nix-status"
+id = "local/nix-status"
 name = "Nix Status"
 version = "0.2.0"
 plugin_api = 24
