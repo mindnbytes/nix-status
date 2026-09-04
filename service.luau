@@ -13,6 +13,67 @@ end
 
 local running = false
 
+local BOOTED_SYSTEM = "/run/booted-system"
+local CURRENT_SYSTEM = "/run/current-system"
+
+-- Helper: publish generation status
+local function publishGeneration(state, fields)
+    local status = fields or {}
+    status.state = state
+    noctalia.state.set("generation-status", status)
+end
+
+local function checkGeneration()
+    publishGeneration("checking")
+
+    local started = noctalia.runAsync({
+        "readlink",
+        "-f",
+        BOOTED_SYSTEM,
+        CURRENT_SYSTEM,
+    }, function(result)
+        if result.timedOut then
+            publishGeneration("error", {
+                message = "Timed out while resolving NixOS system generations",
+            })
+            return
+        end
+
+        if result.exitCode ~= 0 then
+            local message = noctalia.string.trim(result.stderr)
+            if message == "" then
+                message = "Could not resolve NixOS system generations"
+            end
+
+            publishGeneration("error", { message = message })
+            return
+        end
+
+        local paths = {}
+        for path in result.stdout:gmatch("[^\r\n]+") do
+            table.insert(paths, path)
+        end
+
+        if #paths ~= 2 then
+            publishGeneration("error", {
+                message = "Expected booted and current NixOS system paths",
+            })
+            return
+        end
+
+        publishGeneration(paths[1] == paths[2] and "current" or "different", {
+            bootedPath = paths[1],
+            currentPath = paths[2],
+        })
+    end, 5000)
+
+    if not started then
+        publishGeneration("error", {
+            message = "Could not start generation check",
+        })
+    end
+end
+
 -- Helper: publish status
 local function publish(state, message)
     noctalia.state.set("status", {
@@ -111,6 +172,9 @@ local function checkUpdates()
         finish()
     end
 end
+
+-- Generation state is derived from /run and intentionally rebuilt on every service load.
+checkGeneration()
 
 -- Preserve completed results, but do not retain a check whose callback was lost on reload.
 local existingStatus = noctalia.state.get("status")

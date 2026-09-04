@@ -10,7 +10,7 @@ local function render()
     local isChecking = status ~= nil and status.state == "checking"
 
     table.insert(children, ui.label({
-        text = "NixOS Updates",
+        text = "NixOS Status",
         fontSize = 18,
         fontWeight = "bold",
     }))
