@@ -21,6 +21,36 @@ local function publish(state, message)
     })
 end
 
+-- Check Update Helper: compare locks with error handling
+local function compareLocks(candidateLockPath)
+    local current, currentReadErr = noctalia.readFile(realLock)
+    if current == nil then
+        return nil, currentReadErr or "Could not read the current flake lock file"
+    end
+
+    local candidate, candidateReadErr = noctalia.readFile(candidateLockPath)
+    if candidate == nil then
+        return nil, candidateReadErr or "Could not read the candidate flake lock file"
+    end
+
+    local currentLock, currentErr = noctalia.json.decode(current)
+    if currentLock == nil then
+        return nil, currentErr or "Could not decode the current flake lock file"
+    end
+
+    local candidateLockData, candidateErr = noctalia.json.decode(candidate)
+    if candidateLockData == nil then
+        return nil, candidateErr or "Could not decode the candidate flake lock file"
+    end
+
+    local changedInputs = nix.getChangedInputs(currentLock, candidateLockData)
+
+    return {
+        state = #changedInputs == 0 and "current" or "updates",
+        changedInputs = changedInputs,
+    }, nil
+end
+
 -- nix flake update check
 local function checkUpdates()
     if running then
@@ -31,6 +61,12 @@ local function checkUpdates()
     if candidateLockPath == nil then
         publish("error", dataDirErr or "Could not access the plugin data directory")
         return
+    end
+
+    -- centralized cleanup
+    local function finish()
+        noctalia.removeFile(candidateLockPath)
+        running = false
     end
 
     running = true
@@ -55,44 +91,16 @@ local function checkUpdates()
 
         if line == nix.UPDATE_FAILURE then
             publish("error", "Nix update check failed")
-            noctalia.removeFile(candidateLockPath)
-            running = false
+            finish()
 
         elseif line == nix.UPDATE_SUCCESS then
-
-            local current, currentReadErr = noctalia.readFile(realLock)
-            local candidate, candidateReadErr = noctalia.readFile(candidateLockPath)
-
-            if current == nil then
-                publish("error", currentReadErr or "Could not read the current flake lock file")
-            elseif candidate == nil then
-                publish("error", candidateReadErr or "Could not read the candidate flake lock file")
+            local status, err = compareLocks(candidateLockPath)
+            if status == nil then
+                publish("error", err)
             else
-                local currentLock, currentErr = noctalia.json.decode(current)
-                local candidateLockData, candidateErr = noctalia.json.decode(candidate)
-
-                if currentLock == nil then
-                    publish("error", currentErr)
-                elseif candidateLockData == nil then
-                    publish("error", candidateErr)
-                else
-                    local changedInputs = nix.getChangedInputs(currentLock, candidateLockData)
-
-                    if #changedInputs == 0 then
-                        noctalia.state.set("status", {
-                            state = "current",
-                            changedInputs = {},
-                        })
-                    else
-                        noctalia.state.set("status", {
-                            state = "updates",
-                            changedInputs = changedInputs,
-                        })
-                    end
-                end
+                noctalia.state.set("status", status)
             end
-            noctalia.removeFile(candidateLockPath)
-            running = false
+            finish()
         else
             noctalia.log("nix flake update: " .. line)
         end
