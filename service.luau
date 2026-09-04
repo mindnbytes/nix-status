@@ -13,10 +13,12 @@ end
 
 local running = false
 local generationRunning = false
+local closureDiffRunning = false
 
 local BOOTED_SYSTEM = "/run/booted-system"
 local CURRENT_SYSTEM = "/run/current-system"
 local GENERATION_REFRESH_INTERVAL_MS = 60000
+local CLOSURE_DIFF_TIMEOUT_MS = 60000
 
 -- Helper: publish generation status
 local function publishGeneration(state, fields)
@@ -91,6 +93,68 @@ local function checkGeneration()
         generationRunning = false
         publishGeneration("error", {
             message = "Could not start generation check",
+        })
+    end
+end
+
+local function cleanCommandOutput(output)
+    return noctalia.string.trim(output:gsub("\27%[[0-9;]*m", ""))
+end
+
+local function publishClosureDiff(state, fields)
+    local status = fields or {}
+    status.state = state
+    noctalia.state.set("closure-diff-status", status)
+end
+
+local function compareClosures()
+    if closureDiffRunning then
+        return
+    end
+
+    closureDiffRunning = true
+    publishClosureDiff("running")
+
+    local started = noctalia.runAsync({
+        "nix",
+        "store",
+        "diff-closures",
+        BOOTED_SYSTEM,
+        CURRENT_SYSTEM,
+    }, function(result)
+        closureDiffRunning = false
+
+        if result.timedOut then
+            publishClosureDiff("error", {
+                message = "Nix store closure comparison timed out",
+            })
+            return
+        end
+
+        if result.exitCode ~= 0 then
+            local message = cleanCommandOutput(result.stderr)
+            if message == "" then
+                message = cleanCommandOutput(result.stdout)
+            end
+            if message == "" then
+                message = "Nix store closure comparison failed"
+            end
+
+            publishClosureDiff("error", { message = message })
+            return
+        end
+
+        publishClosureDiff("ready", {
+            output = cleanCommandOutput(result.stdout),
+            truncated = result.stdoutTruncated,
+        })
+        checkGeneration()
+    end, CLOSURE_DIFF_TIMEOUT_MS)
+
+    if not started then
+        closureDiffRunning = false
+        publishClosureDiff("error", {
+            message = "Could not start Nix store closure comparison",
         })
     end
 end
@@ -202,7 +266,12 @@ function update()
     checkGeneration()
 end
 
--- Preserve completed results, but do not retain a check whose callback was lost on reload.
+-- Preserve completed results, but do not retain checks whose callbacks were lost on reload.
+local existingDiffStatus = noctalia.state.get("closure-diff-status")
+if existingDiffStatus == nil or existingDiffStatus.state == "running" then
+    publishClosureDiff("idle")
+end
+
 local existingStatus = noctalia.state.get("status")
 if existingStatus == nil or existingStatus.state == "checking" then
     publish("idle", nil)
@@ -215,4 +284,8 @@ end)
 
 noctalia.state.watch("generation-refresh-request", function(_)
     checkGeneration()
+end)
+
+noctalia.state.watch("closure-diff-request", function(_)
+    compareClosures()
 end)
