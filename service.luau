@@ -32,8 +32,16 @@ local function checkGeneration()
 
     generationRunning = true
 
-    if noctalia.state.get("generation-status") == nil then
+    local existing = noctalia.state.get("generation-status")
+    if existing == nil then
         publishGeneration("checking")
+    else
+        publishGeneration(existing.state, {
+            bootedPath = existing.bootedPath,
+            currentPath = existing.currentPath,
+            message = existing.message,
+            refreshing = true,
+        })
     end
 
     local started = noctalia.runAsync({
