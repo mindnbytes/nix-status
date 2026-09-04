@@ -11,6 +11,16 @@ A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that
 
 Click the widget to view changed inputs or run a new check. Requires the `nix` command with network access.
 
+## Tests
+
+Run the parser and flake-lock comparison tests with the standalone Luau interpreter:
+
+```sh
+nix shell nixpkgs#luau -c ./scripts/test
+```
+
+If `luau` is already available in your environment, run `./scripts/test` directly.
+
 ## Branding
 
 The widget uses the NixOS logo for clear visual identification. Use artwork from the official [NixOS branding page](https://nixos.org/branding/) and follow its branding and licensing guidance.
