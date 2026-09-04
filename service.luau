@@ -108,7 +108,7 @@ local function checkUpdates()
 
     if not started then
         publish("error", "Could not start nix")
-        running = false
+        finish()
     end
 end
 
