@@ -17,6 +17,16 @@ local function requestClosureDiff()
     noctalia.state.set("closure-diff-request", n + 1)
 end
 
+local function closureChangeColor(change)
+    if change == "increase" then
+        return "error"
+    elseif change == "decrease" then
+        return "tertiary"
+    end
+
+    return "on_surface"
+end
+
 local function render()
     local children = {}
     local isChecking = status ~= nil and status.state == "checking"
@@ -107,15 +117,45 @@ local function render()
                     color = "on_surface_variant",
                 }))
             else
+                local outputChildren = {}
+                local lines = closureDiffStatus.lines or {}
+
+                if #lines == 0 then
+                    table.insert(outputChildren, ui.markdown({
+                        text = "```text\n" .. output .. "\n```",
+                    }))
+                else
+                    for _, line in ipairs(lines) do
+                        if line.amount ~= nil then
+                            table.insert(outputChildren, ui.row({
+                                gap = 4,
+                                align = "start",
+                                justify = "space_between",
+                            }, {
+                                ui.label({
+                                    text = line.prefix or "",
+                                    flexGrow = 1,
+                                }),
+                                ui.label({
+                                    text = line.amount,
+                                    color = closureChangeColor(line.change),
+                                    fontWeight = line.change ~= nil and "semibold" or "normal",
+                                }),
+                            }))
+                        else
+                            table.insert(outputChildren, ui.label({
+                                text = line.text or "",
+                            }))
+                        end
+                    end
+                end
+
                 table.insert(children, ui.column({
+                    gap = 2,
                     padding = 8,
                     fill = "surface_variant",
                     radius = 8,
-                }, {
-                    ui.markdown({
-                        text = "```text\n" .. output .. "\n```",
-                    }),
-                }))
+                }, outputChildren))
             end
 
             if closureDiffStatus.truncated then

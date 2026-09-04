@@ -101,6 +101,61 @@ local function cleanCommandOutput(output)
     return noctalia.string.trim(output:gsub("\27%[[0-9;]*m", ""))
 end
 
+local function ansiChange(params)
+    for code in params:gmatch("[^;]+") do
+        if code == "31" then
+            return "increase"
+        elseif code == "32" then
+            return "decrease"
+        end
+    end
+
+    return nil
+end
+
+local function parseClosureDiffOutput(output)
+    local lines = {}
+
+    for rawLine in output:gmatch("[^\r\n]+") do
+        local text = rawLine:gsub("\27%[[0-9;]*m", "")
+        local prefix, amount = text:match("^(.-)([%+%-]?[%d%.]+%s+[%a]+)$")
+
+        if prefix ~= nil and amount ~= nil then
+            local change = nil
+            local first = amount:sub(1, 1)
+
+            if first == "+" then
+                change = "increase"
+            elseif first == "-" then
+                change = "decrease"
+            else
+                local params, coloredAmount = rawLine:match(
+                    "\27%[([0-9;]*)m([%d%.]+%s+[%a]+)\27%[[0-9;]*m%s*$"
+                )
+
+                if coloredAmount == amount then
+                    change = ansiChange(params)
+                    if change == "increase" then
+                        amount = "+" .. amount
+                    elseif change == "decrease" then
+                        amount = "-" .. amount
+                    end
+                end
+            end
+
+            table.insert(lines, {
+                prefix = prefix,
+                amount = amount,
+                change = change,
+            })
+        else
+            table.insert(lines, { text = text })
+        end
+    end
+
+    return cleanCommandOutput(output), lines
+end
+
 local function publishClosureDiff(state, fields)
     local status = fields or {}
     status.state = state
@@ -144,8 +199,10 @@ local function compareClosures()
             return
         end
 
+        local output, lines = parseClosureDiffOutput(result.stdout)
         publishClosureDiff("ready", {
-            output = cleanCommandOutput(result.stdout),
+            output = output,
+            lines = lines,
             truncated = result.stdoutTruncated,
         })
         checkGeneration()
