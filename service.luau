@@ -12,9 +12,11 @@ if dataDir ~= nil then
 end
 
 local running = false
+local generationRunning = false
 
 local BOOTED_SYSTEM = "/run/booted-system"
 local CURRENT_SYSTEM = "/run/current-system"
+local GENERATION_REFRESH_INTERVAL_MS = 60000
 
 -- Helper: publish generation status
 local function publishGeneration(state, fields)
@@ -24,7 +26,15 @@ local function publishGeneration(state, fields)
 end
 
 local function checkGeneration()
-    publishGeneration("checking")
+    if generationRunning then
+        return
+    end
+
+    generationRunning = true
+
+    if noctalia.state.get("generation-status") == nil then
+        publishGeneration("checking")
+    end
 
     local started = noctalia.runAsync({
         "readlink",
@@ -32,6 +42,8 @@ local function checkGeneration()
         BOOTED_SYSTEM,
         CURRENT_SYSTEM,
     }, function(result)
+        generationRunning = false
+
         if result.timedOut then
             publishGeneration("error", {
                 message = "Timed out while resolving NixOS system generations",
@@ -68,6 +80,7 @@ local function checkGeneration()
     end, 5000)
 
     if not started then
+        generationRunning = false
         publishGeneration("error", {
             message = "Could not start generation check",
         })
@@ -175,6 +188,11 @@ end
 
 -- Generation state is derived from /run and intentionally rebuilt on every service load.
 checkGeneration()
+noctalia.setUpdateInterval(GENERATION_REFRESH_INTERVAL_MS)
+
+function update()
+    checkGeneration()
+end
 
 -- Preserve completed results, but do not retain a check whose callback was lost on reload.
 local existingStatus = noctalia.state.get("status")
@@ -182,7 +200,11 @@ if existingStatus == nil or existingStatus.state == "checking" then
     publish("idle", nil)
 end
 
--- Panel check button sends an incrementing number here whenever clicked.
+-- Panel buttons send incrementing numbers here whenever clicked.
 noctalia.state.watch("check-request", function(_)
     checkUpdates()
+end)
+
+noctalia.state.watch("generation-refresh-request", function(_)
+    checkGeneration()
 end)

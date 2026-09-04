@@ -16,30 +16,55 @@ local function setLogo(state)
     barWidget.setImage(path, true, 28, 28)
 end
 
-local function show(status)
+local updateStatus = noctalia.state.get("status")
+local generationStatus = noctalia.state.get("generation-status")
 
-    local state = status and status.state or "idle"
-    setLogo(state)
+local function show()
+    local updateState = updateStatus and updateStatus.state or "idle"
+    local generationState = generationStatus and generationStatus.state or "checking"
 
-    if state == "current" then
-        barWidget.setTooltip("NixOS · up to date")
-    elseif state == "updates" then
-        barWidget.setTooltip("NixOS · updates available")
-    elseif state == "checking" then
-        barWidget.setTooltip("Checking Nix updates…")
-    elseif state == "error" then
-        barWidget.setTooltip("NixOS · check failed")
-    else
-        barWidget.setTooltip("NixOS")
+    setLogo(updateState)
+    barWidget.setText(generationState == "different" and "↻" or "")
+
+    local tooltip = { "NixOS" }
+
+    if generationState == "current" then
+        table.insert(tooltip, "booted generation is current")
+    elseif generationState == "different" then
+        table.insert(tooltip, "booted generation differs")
+    elseif generationState == "checking" then
+        table.insert(tooltip, "checking generation…")
+    elseif generationState == "error" then
+        table.insert(tooltip, "generation check failed")
     end
+
+    if updateState == "current" then
+        table.insert(tooltip, "inputs up to date")
+    elseif updateState == "updates" then
+        table.insert(tooltip, "updates available")
+    elseif updateState == "checking" then
+        table.insert(tooltip, "checking updates…")
+    elseif updateState == "error" then
+        table.insert(tooltip, "update check failed")
+    end
+
+    barWidget.setTooltip(table.concat(tooltip, " · "))
 end
 
 function update()
-    show(noctalia.state.get("status"))
+    updateStatus = noctalia.state.get("status")
+    generationStatus = noctalia.state.get("generation-status")
+    show()
 end
 
 noctalia.state.watch("status", function(status)
-    show(status)
+    updateStatus = status
+    show()
+end)
+
+noctalia.state.watch("generation-status", function(status)
+    generationStatus = status
+    show()
 end)
 
 function onClick()
