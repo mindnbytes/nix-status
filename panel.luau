@@ -1,5 +1,6 @@
 local status = nil
 local generationStatus = nil
+local closureDiffStatus = nil
 
 local function requestCheck()
     local n = noctalia.state.get("check-request") or 0
@@ -11,12 +12,18 @@ local function requestGenerationRefresh()
     noctalia.state.set("generation-refresh-request", n + 1)
 end
 
+local function requestClosureDiff()
+    local n = noctalia.state.get("closure-diff-request") or 0
+    noctalia.state.set("closure-diff-request", n + 1)
+end
+
 local function render()
     local children = {}
     local isChecking = status ~= nil and status.state == "checking"
     local isGenerationChecking = generationStatus == nil
         or generationStatus.state == "checking"
         or generationStatus.refreshing == true
+    local isComparingClosures = closureDiffStatus ~= nil and closureDiffStatus.state == "running"
 
     table.insert(children, ui.label({
         text = "NixOS Status",
@@ -59,6 +66,83 @@ local function render()
             color = "on_surface_variant",
         }))
     end
+
+    if closureDiffStatus ~= nil and closureDiffStatus.state ~= "idle" then
+        local output = closureDiffStatus.output or ""
+        local headerChildren = {
+            ui.label({
+                text = "Closure Changes",
+                fontWeight = "bold",
+            }),
+        }
+
+        if closureDiffStatus.state == "ready" and output ~= "" then
+            table.insert(headerChildren, ui.button({
+                text = "Copy",
+                controlSize = "sm",
+                variant = "ghost",
+                onClick = "onCopyClosureDiffClicked",
+            }))
+        end
+
+        table.insert(children, ui.row({
+            align = "center",
+            justify = "space_between",
+        }, headerChildren))
+
+        if closureDiffStatus.state == "running" then
+            table.insert(children, ui.label({
+                text = "Comparing booted and current system closures…",
+                color = "on_surface_variant",
+            }))
+        elseif closureDiffStatus.state == "error" then
+            table.insert(children, ui.label({
+                text = closureDiffStatus.message or "Closure comparison failed",
+                color = "error",
+            }))
+        elseif closureDiffStatus.state == "ready" then
+            if output == "" then
+                table.insert(children, ui.label({
+                    text = "No closure changes reported.",
+                    color = "on_surface_variant",
+                }))
+            else
+                table.insert(children, ui.column({
+                    padding = 8,
+                    fill = "surface_variant",
+                    radius = 8,
+                }, {
+                    ui.markdown({
+                        text = "```text\n" .. output .. "\n```",
+                    }),
+                }))
+            end
+
+            if closureDiffStatus.truncated then
+                table.insert(children, ui.label({
+                    text = "Output was truncated by Noctalia.",
+                    fontSize = 11,
+                    color = "error",
+                }))
+            end
+        end
+    end
+
+    table.insert(children, ui.row({
+        gap = 8,
+    }, {
+        ui.button({
+            text = "Refresh Generation",
+            variant = "outline",
+            enabled = not isGenerationChecking,
+            onClick = "onRefreshClicked",
+        }),
+        ui.button({
+            text = isComparingClosures and "Comparing…" or "Compare Closures",
+            enabled = not isComparingClosures,
+            onClick = "onCompareClosuresClicked",
+        }),
+    }))
 
     table.insert(children, ui.separator({}))
     table.insert(children, ui.label({
@@ -123,23 +207,16 @@ local function render()
         }))
     end
 
-    table.insert(children, ui.row({
-        gap = 8,
-    }, {
-        ui.button({
-            text = "Refresh Generation",
-            variant = "outline",
-            enabled = not isGenerationChecking,
-            onClick = "onRefreshClicked",
-        }),
-        ui.button({
-            text = "Check Updates",
-            enabled = not isChecking,
-            onClick = "onCheckClicked",
-        }),
+    table.insert(children, ui.button({
+        text = "Check Updates",
+        enabled = not isChecking,
+        onClick = "onCheckClicked",
     }))
 
-    panel.render(ui.column({
+
+    panel.render(ui.scroll({
+        key = "panel-scroll",
+        flexGrow = 1,
         gap = 12,
     }, children))
 end
@@ -147,12 +224,23 @@ end
 function onOpen(_)
     status = noctalia.state.get("status")
     generationStatus = noctalia.state.get("generation-status")
+    closureDiffStatus = noctalia.state.get("closure-diff-status")
     render()
     requestGenerationRefresh()
 end
 
 function onRefreshClicked()
     requestGenerationRefresh()
+end
+
+function onCompareClosuresClicked()
+    requestClosureDiff()
+end
+
+function onCopyClosureDiffClicked()
+    if closureDiffStatus ~= nil and closureDiffStatus.output ~= nil then
+        noctalia.copyToClipboard(closureDiffStatus.output, "text/plain")
+    end
 end
 
 function onCheckClicked()
@@ -166,5 +254,10 @@ end)
 
 noctalia.state.watch("generation-status", function(value)
     generationStatus = value
+    render()
+end)
+
+noctalia.state.watch("closure-diff-status", function(value)
+    closureDiffStatus = value
     render()
 end)
