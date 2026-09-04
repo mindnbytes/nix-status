@@ -27,6 +27,16 @@ local function closureChangeColor(change)
     return "on_surface"
 end
 
+local function inputChangeText(input)
+    if input.kind == "added" then
+        return "Added · " .. input.newDate, input.newRev
+    elseif input.kind == "removed" then
+        return "Removed · " .. input.oldDate, input.oldRev
+    end
+
+    return input.oldDate .. " → " .. input.newDate, input.oldRev .. " → " .. input.newRev
+end
+
 local function render()
     local children = {}
     local isChecking = status ~= nil and status.state == "checking"
@@ -211,6 +221,8 @@ local function render()
         }))
 
         for _, input in ipairs(status.changedInputs or {}) do
+            local dateText, revisionText = inputChangeText(input)
+
             table.insert(children, ui.row({
                 gap = 16,
                 align = "start",
@@ -227,12 +239,12 @@ local function render()
                     align = "end",
                 }, {
                     ui.label({
-                        text = input.oldDate .. " → " .. input.newDate,
+                        text = dateText,
                         textAlign = "right",
                     }),
 
                     ui.label({
-                        text = input.oldRev .. " → " .. input.newRev,
+                        text = revisionText,
                         textAlign = "right",
                         fontSize = 11,
                         color = "on_surface_variant",

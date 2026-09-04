@@ -1,4 +1,6 @@
 -- Set-up State and Paths
+local closureDiff = require("./lib/closure_diff.luau")
+local flakeLock = require("./lib/flake_lock.luau")
 local nix = require("./lib/nix.luau")
 
 local FLAKE_DIR = noctalia.expandPath("~/Projects/nixos-vm/nixos")
@@ -97,64 +99,6 @@ local function checkGeneration()
     end
 end
 
-local function cleanCommandOutput(output)
-    return noctalia.string.trim(output:gsub("\27%[[0-9;]*m", ""))
-end
-
-local function ansiChange(params)
-    for code in params:gmatch("[^;]+") do
-        if code == "31" then
-            return "increase"
-        elseif code == "32" then
-            return "decrease"
-        end
-    end
-
-    return nil
-end
-
-local function parseClosureDiffOutput(output)
-    local lines = {}
-
-    for rawLine in output:gmatch("[^\r\n]+") do
-        local text = rawLine:gsub("\27%[[0-9;]*m", "")
-        local prefix, amount = text:match("^(.-)([%+%-]?[%d%.]+%s+[%a]+)$")
-
-        if prefix ~= nil and amount ~= nil then
-            local change = nil
-            local first = amount:sub(1, 1)
-
-            if first == "+" then
-                change = "increase"
-            elseif first == "-" then
-                change = "decrease"
-            else
-                local params, coloredAmount = rawLine:match(
-                    "\27%[([0-9;]*)m([%d%.]+%s+[%a]+)\27%[[0-9;]*m%s*$"
-                )
-
-                if coloredAmount == amount then
-                    change = ansiChange(params)
-                    if change == "increase" then
-                        amount = "+" .. amount
-                    elseif change == "decrease" then
-                        amount = "-" .. amount
-                    end
-                end
-            end
-
-            table.insert(lines, {
-                prefix = prefix,
-                amount = amount,
-                change = change,
-            })
-        else
-            table.insert(lines, { text = text })
-        end
-    end
-
-    return cleanCommandOutput(output), lines
-end
 
 local function publishClosureDiff(state, fields)
     local status = fields or {}
@@ -187,9 +131,9 @@ local function compareClosures()
         end
 
         if result.exitCode ~= 0 then
-            local message = cleanCommandOutput(result.stderr)
+            local message = closureDiff.clean(result.stderr)
             if message == "" then
-                message = cleanCommandOutput(result.stdout)
+                message = closureDiff.clean(result.stdout)
             end
             if message == "" then
                 message = "Nix store closure comparison failed"
@@ -199,7 +143,7 @@ local function compareClosures()
             return
         end
 
-        local output, lines = parseClosureDiffOutput(result.stdout)
+        local output, lines = closureDiff.parse(result.stdout)
         publishClosureDiff("ready", {
             output = output,
             lines = lines,
@@ -224,6 +168,14 @@ local function publish(state, message)
     })
 end
 
+local function formatLockDate(timestamp, inputExists)
+    if type(timestamp) == "number" then
+        return noctalia.formatTime("%b %d", timestamp)
+    end
+
+    return inputExists and "?" or "—"
+end
+
 -- Check Update Helper: compare locks with error handling
 local function compareLocks(candidateLockPath)
     local current, currentReadErr = noctalia.readFile(realLock)
@@ -246,7 +198,25 @@ local function compareLocks(candidateLockPath)
         return nil, candidateErr or "Could not decode the candidate flake lock file"
     end
 
-    local changedInputs = nix.getChangedInputs(currentLock, candidateLockData)
+    local changes, comparisonErr = flakeLock.getChangedInputs(currentLock, candidateLockData)
+    if changes == nil then
+        return nil, comparisonErr or "Could not compare flake lock inputs"
+    end
+
+    local changedInputs = {}
+    for _, change in ipairs(changes) do
+        local hasOldInput = change.kind ~= "added"
+        local hasNewInput = change.kind ~= "removed"
+
+        table.insert(changedInputs, {
+            name = change.name,
+            kind = change.kind,
+            oldRev = change.oldRev or "—",
+            newRev = change.newRev or "—",
+            oldDate = formatLockDate(change.oldModified, hasOldInput),
+            newDate = formatLockDate(change.newModified, hasNewInput),
+        })
+    end
 
     return {
         state = #changedInputs == 0 and "current" or "updates",
