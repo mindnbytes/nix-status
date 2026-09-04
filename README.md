@@ -1,6 +1,6 @@
 # Nix Status
 
-A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that checks a Nix flake for input updates without modifying its current `flake.lock`.
+A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that monitors the active NixOS generation, compares system closures on demand, and checks a Nix flake for input updates without modifying its current `flake.lock`.
 
 ## Setup
 
@@ -9,7 +9,13 @@ A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that
 3. Add the NixOS logo variants (`nix-logo.svg`, `nix-logo-updates.svg`, and `nix-logo-error.svg`) to your Noctalia templates, declare them in Noctalia's `config.toml`, then run `noctalia msg templates-apply`.
 4. Enable the `Nix Status` plugin and add its widget to your bar.
 
-Click the widget to view changed inputs or run a new check. Requires the `nix` command with network access.
+The widget indicates when the booted generation differs from the current system or flake input updates are available. Click it to:
+
+- Refresh the generation status.
+- Compare the booted and current system closures on demand.
+- Check for flake input updates.
+
+Update checks require the `nix` command and network access.
 
 ## Tests
 
