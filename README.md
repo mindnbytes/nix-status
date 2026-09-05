@@ -1,6 +1,6 @@
 # Nix Status
 
-A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that monitors the active NixOS generation, compares system closures on demand, and checks a Nix flake for input updates without modifying its current `flake.lock`.
+A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that monitors the active NixOS generation, compares system closures on demand, and updates the inputs of a configured Nix flake.
 
 ## Setup
 
@@ -9,17 +9,17 @@ A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that
 3. Add the NixOS logo variants (`nix-logo.svg`, `nix-logo-updates.svg`, and `nix-logo-error.svg`) to your Noctalia templates, declare them in Noctalia's `config.toml`, then run `noctalia msg templates-apply`.
 4. Enable the `Nix Status` plugin and add its widget to your bar.
 
-The widget indicates when the booted generation differs from the current system or flake input updates are available. Click it to:
+The widget shows whether the booted generation differs from the current system and whether the most recent input update changed any inputs. Click it to open controls that:
 
 - Refresh the generation status.
 - Compare the booted and current system closures on demand.
-- Check for flake input updates.
+- Run a regular `nix flake update --flake FLAKE_DIR` against the configured flake.
 
-Update checks require the `nix` command and network access.
+The update mutates that flake's `flake.lock` and reports input changes captured from the command output. It requires the `nix` command, network access, and write access to the flake directory. A second run with no newer inputs reports that all inputs are up to date.
 
 ## Tests
 
-Run the parser and flake-lock comparison tests with the standalone Luau interpreter:
+Run the closure-diff and Nix update-output parser tests with the standalone Luau interpreter:
 
 ```sh
 nix shell nixpkgs#luau -c ./scripts/test
