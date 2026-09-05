@@ -41,11 +41,11 @@ local function show()
     if updateState == "current" then
         table.insert(tooltip, "inputs up to date")
     elseif updateState == "updates" then
-        table.insert(tooltip, "updates available")
+        table.insert(tooltip, "inputs updated")
     elseif updateState == "checking" then
-        table.insert(tooltip, "checking updates…")
+        table.insert(tooltip, "updating inputs…")
     elseif updateState == "error" then
-        table.insert(tooltip, "update check failed")
+        table.insert(tooltip, "input update failed")
     end
 
     barWidget.setTooltip(table.concat(tooltip, " · "))
