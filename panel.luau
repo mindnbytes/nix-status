@@ -202,12 +202,12 @@ local function render()
 
     if status == nil or status.state == "idle" then
         table.insert(children, ui.label({
-            text = "Updates have not been checked yet.",
+            text = "Run an update to check the flake inputs.",
         }))
 
     elseif status.state == "checking" then
         table.insert(children, ui.label({
-            text = "Checking flake inputs…",
+            text = "Updating flake inputs…",
         }))
 
     elseif status.state == "current" then
@@ -217,7 +217,7 @@ local function render()
 
     elseif status.state == "updates" then
         table.insert(children, ui.label({
-            text = "Updates available:",
+            text = "Inputs updated:",
         }))
 
         for _, input in ipairs(status.changedInputs or {}) do
@@ -260,7 +260,7 @@ local function render()
     end
 
     table.insert(children, ui.button({
-        text = "Check Updates",
+        text = "Update Flake Inputs",
         enabled = not isChecking,
         onClick = "onCheckClicked",
     }))
