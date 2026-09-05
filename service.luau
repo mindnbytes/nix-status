@@ -230,58 +230,47 @@ local function checkUpdates()
         return
     end
 
-    local candidateLockPath = candidateLock
-    if candidateLockPath == nil then
-        publish("error", dataDirErr or "Could not access the plugin data directory")
-        return
-    end
-
-    -- centralized cleanup
-    local function finish()
-        noctalia.removeFile(candidateLockPath)
-        running = false
-    end
-
     running = true
     publish("checking", nil)
 
-    noctalia.removeFile(candidateLockPath)
+    local started = noctalia.runAsync({
+        "nix",
+        "flake",
+        "update",
+        "--flake",
+        FLAKE_DIR,
+    }, function(result)
+        running = false
 
-    local cmd = [[
-    if nix flake update --flake ]]
-        .. nix.shellQuote(FLAKE_DIR)
-        .. " --output-lock-file "
-        .. nix.shellQuote(candidateLockPath)
-        .. [[; then
-        printf '%s\n' '__NOCTALIA_NIX_UPDATE_SUCCESS__'
-    else
-        printf '%s\n' '__NOCTALIA_NIX_UPDATE_FAILURE__'
-    fi
-    ]]
-
-    local started = noctalia.runStream(cmd, function(line)
-        line = line:gsub("[\r\n]+$", "")
-
-        if line == nix.UPDATE_FAILURE then
-            publish("error", "Nix update check failed")
-            finish()
-
-        elseif line == nix.UPDATE_SUCCESS then
-            local status, err = compareLocks(candidateLockPath)
-            if status == nil then
-                publish("error", err)
-            else
-                noctalia.state.set("status", status)
-            end
-            finish()
-        else
-            noctalia.log("nix flake update: " .. line)
+        if result.timedOut then
+            publish("error", "Nix flake update timed out")
+            return
         end
-    end)
+
+        if result.exitCode ~= 0 then
+            local message = noctalia.string.trim(result.stderr)
+            if message == "" then
+                message = noctalia.string.trim(result.stdout)
+            end
+            if message == "" then
+                message = "Nix flake update failed"
+            end
+
+            publish("error", message)
+            return
+        end
+
+        local output = result.stdout .. "\n" .. result.stderr
+        local changedInputs = nix.parseUpdateOutput(output)
+        noctalia.state.set("status", {
+            state = #changedInputs == 0 and "current" or "updates",
+            changedInputs = changedInputs,
+        })
+    end, 60000)
 
     if not started then
-        publish("error", "Could not start nix")
-        finish()
+        running = false
+        publish("error", "Could not start nix flake update")
     end
 end
 
