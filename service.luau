@@ -1,17 +1,8 @@
 -- Set-up State and Paths
 local closureDiff = require("./lib/closure_diff.luau")
-local flakeLock = require("./lib/flake_lock.luau")
 local nix = require("./lib/nix.luau")
 
 local FLAKE_DIR = noctalia.expandPath("~/Projects/nixos-vm/nixos")
-local realLock = FLAKE_DIR .. "/flake.lock"
-
-local dataDir, dataDirErr = noctalia.pluginDataDir()
-local candidateLock: string? = nil
-
-if dataDir ~= nil then
-    candidateLock = dataDir .. "/candidate-flake.lock"
-end
 
 local running = false
 local generationRunning = false
@@ -166,62 +157,6 @@ local function publish(state, message)
         state = state,
         message = message,
     })
-end
-
-local function formatLockDate(timestamp, inputExists)
-    if type(timestamp) == "number" then
-        return noctalia.formatTime("%b %d", timestamp)
-    end
-
-    return inputExists and "?" or "—"
-end
-
--- Check Update Helper: compare locks with error handling
-local function compareLocks(candidateLockPath)
-    local current, currentReadErr = noctalia.readFile(realLock)
-    if current == nil then
-        return nil, currentReadErr or "Could not read the current flake lock file"
-    end
-
-    local candidate, candidateReadErr = noctalia.readFile(candidateLockPath)
-    if candidate == nil then
-        return nil, candidateReadErr or "Could not read the candidate flake lock file"
-    end
-
-    local currentLock, currentErr = noctalia.json.decode(current)
-    if currentLock == nil then
-        return nil, currentErr or "Could not decode the current flake lock file"
-    end
-
-    local candidateLockData, candidateErr = noctalia.json.decode(candidate)
-    if candidateLockData == nil then
-        return nil, candidateErr or "Could not decode the candidate flake lock file"
-    end
-
-    local changes, comparisonErr = flakeLock.getChangedInputs(currentLock, candidateLockData)
-    if changes == nil then
-        return nil, comparisonErr or "Could not compare flake lock inputs"
-    end
-
-    local changedInputs = {}
-    for _, change in ipairs(changes) do
-        local hasOldInput = change.kind ~= "added"
-        local hasNewInput = change.kind ~= "removed"
-
-        table.insert(changedInputs, {
-            name = change.name,
-            kind = change.kind,
-            oldRev = change.oldRev or "—",
-            newRev = change.newRev or "—",
-            oldDate = formatLockDate(change.oldModified, hasOldInput),
-            newDate = formatLockDate(change.newModified, hasNewInput),
-        })
-    end
-
-    return {
-        state = #changedInputs == 0 and "current" or "updates",
-        changedInputs = changedInputs,
-    }, nil
 end
 
 -- nix flake update check

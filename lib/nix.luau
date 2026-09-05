@@ -1,9 +1,5 @@
 local ANSI_CSI_PATTERN = "\27%[[0-9;:<?]*[ -/]*[@-~]"
 
-local function shellQuote(value: string): string
-    return "'" .. value:gsub("'", "'\\''") .. "'"
-end
-
 local function trim(value)
     return value:match("^%s*(.-)%s*$") or ""
 end
@@ -149,8 +145,5 @@ local function parseUpdateOutput(output)
 end
 
 return {
-    shellQuote = shellQuote,
     parseUpdateOutput = parseUpdateOutput,
-    UPDATE_SUCCESS = "__NOCTALIA_NIX_UPDATE_SUCCESS__",
-    UPDATE_FAILURE = "__NOCTALIA_NIX_UPDATE_FAILURE__",
 }
