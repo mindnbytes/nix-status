@@ -47,6 +47,8 @@ local function show()
         table.insert(tooltip, "inputs up to date")
     elseif updateState == "updates" then
         table.insert(tooltip, "inputs updated")
+    elseif updateState == "unconfigured" then
+        table.insert(tooltip, "flake updates not configured")
     elseif updateState == "checking" then
         table.insert(tooltip, "updating inputs…")
     elseif updateState == "error" then

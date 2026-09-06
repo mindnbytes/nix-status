@@ -272,10 +272,19 @@ local function render()
         }))
     end
 
-    table.insert(children, ui.button({
-        text = "Update Flake Inputs",
-        enabled = not isChecking and status ~= nil and status.state ~= "unconfigured",
-        onClick = "onCheckClicked",
+    table.insert(children, ui.row({
+        gap = 8,
+    }, {
+        ui.button({
+            text = "Update Flake Inputs",
+            enabled = not isChecking and status ~= nil and status.state ~= "unconfigured",
+            onClick = "onCheckClicked",
+        }),
+        ui.button({
+            text = "Open Settings",
+            variant = "outline",
+            onClick = "onSettingsClicked",
+        }),
     }))
 
 
@@ -310,6 +319,10 @@ end
 
 function onCheckClicked()
     requestCheck()
+end
+
+function onSettingsClicked()
+    noctalia.openSettings()
 end
 
 noctalia.state.watch(contracts.state.updateStatus, function(value)

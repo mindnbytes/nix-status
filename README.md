@@ -9,6 +9,8 @@ A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that
 3. Add the NixOS logo variants (`nix-logo.svg`, `nix-logo-updates.svg`, and `nix-logo-error.svg`) to your Noctalia templates, declare them in Noctalia's `config.toml`, then run `noctalia msg templates-apply`.
 4. Enable the `Nix Status` plugin and add its widget to your bar.
 
+The panel's **Open Settings** button opens the plugin settings, whether or not a flake directory is already configured. When unconfigured, the update button is disabled and the widget tooltip says that flake updates are not configured; this is not shown as an update error.
+
 The widget shows whether the booted generation differs from the current system and whether the most recent input update changed any inputs. Click it to open controls that:
 
 - Refresh the generation status.
