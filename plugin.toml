@@ -1,9 +1,16 @@
 id = "local/nix-status"
 name = "Nix Status"
 version = "0.2.0"
-plugin_api = 24
+plugin_api = 30
 author = "mindnbytes"
 dependencies = ["nix"]
+
+[[setting]]
+key = "flake_dir"
+type = "folder"
+label_key = "settings.flake_dir.label"
+description_key = "settings.flake_dir.description"
+default = ""
 
 [[service]]
 id = "service"
