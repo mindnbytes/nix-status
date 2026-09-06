@@ -200,7 +200,7 @@ Unless deliberately changed and documented, the initial refactor should preserve
 
 ## Characterization coverage
 
-The generation and closure-comparison cases below are covered by the standalone test suite. Flake-update workflow coverage remains to be added.
+The generation, closure-comparison, and flake-update cases below are covered by the standalone test suite.
 
 ### Generation
 
