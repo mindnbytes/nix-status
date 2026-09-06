@@ -88,8 +88,8 @@ t.test("generation requests are discarded while a check is running", function()
     }))
     fake.setState("generation-refresh-request", 3)
 
-    t.expectEqual(#fake.commands, 2)
-    expectGenerationCommand(fake.commands[2])
+    t.expectEqual(#fake.commands, 3)
+    expectGenerationCommand(fake.commands[3])
 end)
 
 t.test("generation check reports equal and different system paths", function()
@@ -107,7 +107,7 @@ t.test("generation check reports equal and different system paths", function()
     t.expectNil(current.refreshing)
 
     fake.setState("generation-refresh-request", 1)
-    fake.complete(2, commandResult({
+    fake.complete(3, commandResult({
         stdout = BOOTED_SYSTEM .. "\n" .. CURRENT_SYSTEM .. "\n",
     }))
 

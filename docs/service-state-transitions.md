@@ -101,9 +101,12 @@ The generation running guard is process-local and therefore starts as `false` af
 
 `lines` contains the structured output produced by `lib/closure_diff.luau`.
 
-### Trigger
+### Triggers
 
-A closure comparison starts when `closure-diff-request` changes.
+A closure comparison starts:
+
+- when `closure-diff-request` changes;
+- after the initial generation check succeeds on service load.
 
 ### Transition table
 
@@ -113,18 +116,19 @@ A closure comparison starts when `closure-diff-request` changes.
 | Running | Another request arrives | No change | Request is ignored |
 | Running | Command times out | `error` with timeout message | Releases the running guard |
 | Running | Command exits non-zero | `error` using cleaned stderr, then stdout, then fallback message | Releases the running guard |
-| Running | Command succeeds | `ready` with cleaned output, parsed lines, and truncation flag | Releases the running guard and requests a generation check directly |
+| Running | Manually requested command succeeds | `ready` with cleaned output, parsed lines, and truncation flag | Releases the running guard and requests a generation check directly |
+| Running | Automatic startup command succeeds | `ready` with cleaned output, parsed lines, and truncation flag | Releases the running guard; does not repeat the generation check |
 | Starting command fails | `runAsync` returns `false` | `error` with start-failure message | Releases the running guard |
 
-A successful comparison calls the generation-check function directly. If a generation check is already running, that follow-up check is ignored.
+A successful manually requested comparison calls the generation-check function directly. If a generation check is already running, that follow-up check is ignored. The automatic startup comparison does not repeat the generation check that triggered it.
 
 ### Reload behavior
 
-On service load:
+On service load, every retained closure status is replaced with `idle` so paths or output from before a switch or reboot are not shown as current. The service then:
 
-- a missing status becomes `idle`;
-- a retained `running` status becomes `idle`, because its callback was lost;
-- `ready` and `error` statuses are preserved.
+1. runs the initial generation check;
+2. starts a fresh closure comparison if that check succeeds;
+3. leaves closure status at `idle` if the generation check fails.
 
 The closure running guard is process-local and therefore starts as `false` after reload.
 
@@ -187,15 +191,16 @@ Unless deliberately changed and documented, the initial refactor should preserve
 3. Every callback path and every failure-to-start path releases its workflow's running guard.
 4. A generation refresh retains the previous visible result while indicating `refreshing`.
 5. Closure and update workflows replace their previous visible result with a running state.
-6. Completed closure and update results survive service reloads.
-7. Interrupted closure and update operations reset to idle after service reloads.
-8. A successful closure comparison triggers a generation refresh.
-9. Error output preference remains workflow-specific as described above.
-10. Flake updates remain explicitly user-triggered and mutating.
+6. Completed update results survive service reloads.
+7. Every retained closure result is cleared on service reload and rebuilt after a successful initial generation check.
+8. Interrupted update operations reset to idle after service reloads.
+9. A successful manually requested closure comparison triggers a generation refresh; the automatic startup comparison does not.
+10. Error output preference remains workflow-specific as described above.
+11. Flake updates remain explicitly user-triggered and mutating.
 
-## Candidate characterization tests
+## Characterization coverage
 
-The next step can implement a fake Noctalia host and turn this baseline into executable tests. The minimum useful cases are:
+The generation and closure-comparison cases below are covered by the standalone test suite. Flake-update workflow coverage remains to be added.
 
 ### Generation
 
@@ -209,11 +214,13 @@ The next step can implement a fake Noctalia host and turn this baseline into exe
 ### Closure comparison
 
 - Request publishes `running` and starts the expected `nix store diff-closures` command.
-- Success publishes parsed output and triggers a generation check.
+- Manual success publishes parsed output and triggers a generation check.
+- Automatic startup success publishes parsed output without repeating the generation check.
 - Timeout, non-zero exit with each output fallback, and failure to start publish the documented errors.
 - Truncation is retained in the ready status.
 - Duplicate requests are ignored.
-- Reload resets `running` but preserves completed states.
+- Reload clears every retained closure state and rebuilds it after a successful initial generation check.
+- A failed initial generation check leaves closure status idle.
 
 ### Flake update
 

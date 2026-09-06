@@ -9,6 +9,7 @@ local function start(host, flakeDir, dependencies)
     local running = false
     local generationRunning = false
     local closureDiffRunning = false
+    local compareClosures
 
     local function publishGeneration(state, fields)
         local status = fields or {}
@@ -16,7 +17,7 @@ local function start(host, flakeDir, dependencies)
         host.state.set("generation-status", status)
     end
 
-    local function checkGeneration()
+    local function checkGeneration(onSuccess)
         if generationRunning then
             return
         end
@@ -76,6 +77,10 @@ local function start(host, flakeDir, dependencies)
                 bootedPath = paths[1],
                 currentPath = paths[2],
             })
+
+            if onSuccess ~= nil then
+                onSuccess()
+            end
         end, 5000)
 
         if not started then
@@ -92,7 +97,7 @@ local function start(host, flakeDir, dependencies)
         host.state.set("closure-diff-status", status)
     end
 
-    local function compareClosures()
+    function compareClosures(refreshGeneration)
         if closureDiffRunning then
             return
         end
@@ -135,7 +140,9 @@ local function start(host, flakeDir, dependencies)
                 lines = lines,
                 truncated = result.stdoutTruncated,
             })
-            checkGeneration()
+            if refreshGeneration ~= false then
+                checkGeneration()
+            end
         end, CLOSURE_DIFF_TIMEOUT_MS)
 
         if not started then
@@ -202,16 +209,11 @@ local function start(host, flakeDir, dependencies)
         end
     end
 
-    -- Generation state is derived from /run and intentionally rebuilt on every service load.
-    checkGeneration()
-    host.setUpdateInterval(GENERATION_REFRESH_INTERVAL_MS)
+    -- A retained closure comparison may describe paths from before a switch or reboot.
+    -- Clear it on service load and rebuild it after the initial generation check succeeds.
+    publishClosureDiff("idle")
 
-    -- Preserve completed results, but do not retain checks whose callbacks were lost on reload.
-    local existingDiffStatus = host.state.get("closure-diff-status")
-    if existingDiffStatus == nil or existingDiffStatus.state == "running" then
-        publishClosureDiff("idle")
-    end
-
+    -- Preserve completed update results, but do not retain checks whose callbacks were lost on reload.
     local existingStatus = host.state.get("status")
     if existingStatus == nil or existingStatus.state == "checking" then
         publish("idle", nil)
@@ -229,6 +231,12 @@ local function start(host, flakeDir, dependencies)
     host.state.watch("closure-diff-request", function(_)
         compareClosures()
     end)
+
+    -- Generation state is derived from /run and intentionally rebuilt on every service load.
+    checkGeneration(function()
+        compareClosures(false)
+    end)
+    host.setUpdateInterval(GENERATION_REFRESH_INTERVAL_MS)
 
     return {
         update = checkGeneration,

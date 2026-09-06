@@ -78,11 +78,14 @@ t.test("closure requests are discarded while a comparison is running", function(
     expectClosureCommand(fake.commands[3])
 end)
 
-t.test("closure success publishes parsed output and refreshes generation", function()
+t.test("successful startup generation check runs closure comparison automatically", function()
     local fake = fakeNoctalia.new()
     startService(fake)
+    t.expectEqual(fake.getState("closure-diff-status").state, "idle")
+
     completeInitialGeneration(fake)
-    requestClosureDiff(fake)
+    t.expectEqual(fake.getState("closure-diff-status").state, "running")
+    expectClosureCommand(fake.commands[2])
 
     fake.complete(2, commandResult({
         stdout = "Closure size: \27[91m12.5 MiB\27[0m\n",
@@ -98,9 +101,21 @@ t.test("closure success publishes parsed output and refreshes generation", funct
     t.expectEqual(status.lines[1].amount, "+12.5 MiB")
     t.expectEqual(status.lines[1].change, "increase")
 
-    t.expectEqual(#fake.commands, 3)
-    t.expectEqual(fake.commands[3].argv[1], "readlink")
-    t.expectEqual(fake.commands[3].argv[2], "-f")
+    t.expectEqual(#fake.commands, 2)
+end)
+
+t.test("successful manual closure comparison refreshes generation", function()
+    local fake = fakeNoctalia.new()
+    startService(fake)
+    completeInitialGeneration(fake)
+    fake.complete(2, commandResult())
+
+    requestClosureDiff(fake)
+    fake.complete(3, commandResult())
+
+    t.expectEqual(#fake.commands, 4)
+    t.expectEqual(fake.commands[4].argv[1], "readlink")
+    t.expectEqual(fake.commands[4].argv[2], "-f")
 end)
 
 t.test("closure timeout publishes an error and releases its running guard", function()
@@ -162,25 +177,45 @@ t.test("closure comparison handles failure to start and can retry", function()
     expectClosureCommand(fake.commands[3])
 end)
 
-t.test("service reload resets interrupted closure state and preserves completed state", function()
-    local interrupted = fakeNoctalia.new({
-        ["closure-diff-status"] = { state = "running" },
-    })
-    startService(interrupted)
-    t.expectEqual(interrupted.getState("closure-diff-status").state, "idle")
+t.test("service reload clears retained closure state before rebuilding it", function()
+    for _, retainedState in ipairs({ "running", "ready", "error" }) do
+        local fake = fakeNoctalia.new({
+            ["closure-diff-status"] = {
+                state = retainedState,
+                output = "stale output",
+                message = "stale error",
+            },
+        })
 
-    local completedStatus = {
-        state = "ready",
-        output = "Closure size: +1 MiB",
-        lines = {},
-        truncated = false,
-    }
-    local completed = fakeNoctalia.new({
-        ["closure-diff-status"] = completedStatus,
-    })
-    startService(completed)
+        startService(fake)
+        local status = fake.getState("closure-diff-status")
+        t.expectEqual(status.state, "idle")
+        t.expectNil(status.output)
+        t.expectNil(status.message)
 
-    t.expectEqual(completed.getState("closure-diff-status"), completedStatus)
+        completeInitialGeneration(fake)
+        t.expectEqual(fake.getState("closure-diff-status").state, "running")
+        expectClosureCommand(fake.commands[2])
+    end
+end)
+
+t.test("failed startup generation check leaves closure comparison idle", function()
+    local fake = fakeNoctalia.new({
+        ["closure-diff-status"] = {
+            state = "ready",
+            output = "stale output",
+        },
+    })
+    startService(fake)
+
+    fake.complete(1, commandResult({
+        exitCode = 1,
+        stderr = "readlink failed",
+    }))
+
+    t.expectEqual(fake.getState("generation-status").state, "error")
+    t.expectEqual(fake.getState("closure-diff-status").state, "idle")
+    t.expectEqual(#fake.commands, 1)
 end)
 
 return true
