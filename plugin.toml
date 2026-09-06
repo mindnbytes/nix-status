@@ -13,6 +13,13 @@ description_key = "settings.flake_dir.description"
 default = ""
 
 [[setting]]
+key = "nixos_configuration"
+type = "string"
+label_key = "settings.nixos_configuration.label"
+description_key = "settings.nixos_configuration.description"
+default = ""
+
+[[setting]]
 key = "use_themed_logos"
 type = "bool"
 label_key = "settings.use_themed_logos.label"
