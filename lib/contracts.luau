@@ -44,10 +44,18 @@ export type ClosureDiffStatus =
     | { state: "ready", output: string, lines: { ClosureLine }, truncated: boolean? }
     | { state: "error", message: string }
 
+export type SystemTargetStatus =
+    { state: "disabled" }
+    | { state: "checking" }
+    | { state: "current", currentPath: string, targetPath: string }
+    | { state: "different", currentPath: string, targetPath: string }
+    | { state: "error", message: string }
+
 local state = {
     updateStatus = "status",
     generationStatus = "generation-status",
     closureDiffStatus = "closure-diff-status",
+    systemTargetStatus = "system-target-status",
 }
 
 local request = {
