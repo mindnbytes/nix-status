@@ -1,12 +1,11 @@
-local closureDiff = require("./closure_diff.luau")
-local nix = require("./nix.luau")
-
 local BOOTED_SYSTEM = "/run/booted-system"
 local CURRENT_SYSTEM = "/run/current-system"
 local GENERATION_REFRESH_INTERVAL_MS = 60000
 local CLOSURE_DIFF_TIMEOUT_MS = 60000
 
-local function start(host, flakeDir)
+local function start(host, flakeDir, dependencies)
+    local closureDiff = dependencies.closureDiff
+    local nix = dependencies.nix
     local running = false
     local generationRunning = false
     local closureDiffRunning = false
