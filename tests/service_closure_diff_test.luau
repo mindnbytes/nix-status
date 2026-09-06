@@ -6,6 +6,8 @@ local flakeUpdate = require("../lib/flake_update")
 local generationCheck = require("../lib/generation_check")
 local nix = require("../lib/nix")
 local serviceRuntime = require("../lib/service_runtime")
+local systemTarget = require("../lib/system_target")
+local systemTargetCheck = require("../lib/system_target_check")
 local t = require("./testlib")
 
 local SYSTEM_PATH = "/nix/store/system"
@@ -35,6 +37,8 @@ local function startService(fake)
         flakeUpdate = flakeUpdate,
         generationCheck = generationCheck,
         nix = nix,
+        systemTarget = systemTarget,
+        systemTargetCheck = systemTargetCheck,
     })
 end
 

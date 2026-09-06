@@ -3,11 +3,13 @@ local contracts = require("./lib/contracts.luau")
 type UpdateStatus = contracts.UpdateStatus
 type GenerationStatus = contracts.GenerationStatus
 type ClosureDiffStatus = contracts.ClosureDiffStatus
+type SystemTargetStatus = contracts.SystemTargetStatus
 type InputChange = contracts.InputChange
 
 local status: UpdateStatus? = nil
 local generationStatus: GenerationStatus? = nil
 local closureDiffStatus: ClosureDiffStatus? = nil
+local systemTargetStatus: SystemTargetStatus? = nil
 
 local function requestCheck()
     local n = noctalia.state.get(contracts.request.update) or 0
@@ -22,6 +24,11 @@ end
 local function requestClosureDiff()
     local n = noctalia.state.get(contracts.request.closureDiff) or 0
     noctalia.state.set(contracts.request.closureDiff, n + 1)
+end
+
+local function requestSystemTargetRefresh()
+    local n = noctalia.state.get(contracts.request.systemTargetRefresh) or 0
+    noctalia.state.set(contracts.request.systemTargetRefresh, n + 1)
 end
 
 local function closureChangeColor(change: contracts.ClosureChange?)
@@ -203,6 +210,51 @@ local function render()
 
     table.insert(children, ui.separator({}))
     table.insert(children, ui.label({
+        text = "Configured System",
+        fontWeight = "bold",
+    }))
+
+    if systemTargetStatus == nil or systemTargetStatus.state == "checking" then
+        table.insert(children, ui.label({
+            text = "Checking the evaluated NixOS configuration…",
+            color = "on_surface_variant",
+        }))
+    elseif systemTargetStatus.state == "disabled" then
+        table.insert(children, ui.label({
+            text = systemTargetStatus.message or "Configure a flake directory and NixOS configuration to enable this check.",
+            color = "on_surface_variant",
+        }))
+    elseif systemTargetStatus.state == "current" then
+        table.insert(children, ui.label({
+            text = "Evaluated configuration is already active.",
+            color = "primary",
+        }))
+    elseif systemTargetStatus.state == "different" then
+        table.insert(children, ui.label({
+            text = "⇧ Switch available: evaluated configuration differs from the active system.",
+            fontWeight = "bold",
+            color = "secondary",
+        }))
+    elseif systemTargetStatus.state == "error" then
+        table.insert(children, ui.label({
+            text = systemTargetStatus.message,
+            color = "error",
+        }))
+    end
+
+    table.insert(children, ui.button({
+        text = systemTargetStatus ~= nil and systemTargetStatus.state == "checking"
+            and "Checking…"
+            or "Refresh Configuration",
+        variant = "outline",
+        enabled = systemTargetStatus ~= nil
+            and systemTargetStatus.state ~= "checking"
+            and systemTargetStatus.state ~= "disabled",
+        onClick = "onRefreshSystemTargetClicked",
+    }))
+
+    table.insert(children, ui.separator({}))
+    table.insert(children, ui.label({
         text = "Flake Inputs",
         fontWeight = "bold",
     }))
@@ -299,6 +351,7 @@ function onOpen(_)
     status = noctalia.state.get(contracts.state.updateStatus)
     generationStatus = noctalia.state.get(contracts.state.generationStatus)
     closureDiffStatus = noctalia.state.get(contracts.state.closureDiffStatus)
+    systemTargetStatus = noctalia.state.get(contracts.state.systemTargetStatus)
     render()
     requestGenerationRefresh()
 end
@@ -309,6 +362,10 @@ end
 
 function onCompareClosuresClicked()
     requestClosureDiff()
+end
+
+function onRefreshSystemTargetClicked()
+    requestSystemTargetRefresh()
 end
 
 function onCopyClosureDiffClicked()
@@ -337,5 +394,10 @@ end)
 
 noctalia.state.watch(contracts.state.closureDiffStatus, function(value)
     closureDiffStatus = value
+    render()
+end)
+
+noctalia.state.watch(contracts.state.systemTargetStatus, function(value)
+    systemTargetStatus = value
     render()
 end)

@@ -45,7 +45,7 @@ export type ClosureDiffStatus =
     | { state: "error", message: string }
 
 export type SystemTargetStatus =
-    { state: "disabled" }
+    { state: "disabled", message: string? }
     | { state: "checking" }
     | { state: "current", currentPath: string, targetPath: string }
     | { state: "different", currentPath: string, targetPath: string }
@@ -62,6 +62,7 @@ local request = {
     update = "check-request",
     generationRefresh = "generation-refresh-request",
     closureDiff = "closure-diff-request",
+    systemTargetRefresh = "system-target-refresh-request",
 }
 
 return {

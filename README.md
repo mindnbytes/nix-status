@@ -1,22 +1,26 @@
 # Nix Status
 
-A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that monitors the active NixOS generation, compares system closures on demand, and updates the inputs of a configured Nix flake.
+A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that monitors the active NixOS generation, reports when an evaluated NixOS configuration differs from the active system, compares system closures on demand, and updates the inputs of a configured Nix flake.
 
 ## Setup
 
 1. Copy this directory into your Noctalia plugins directory.
-2. Set **Flake directory** in the plugin settings to the directory containing `flake.nix`. An empty setting disables input updates; generation checks and closure comparisons still work.
-3. Enable the `Nix Status` plugin and add its widget to your bar.
+2. Set **Flake directory** in the plugin settings to the directory containing `flake.nix`. An empty setting disables input updates and configured-system checks; generation checks and closure comparisons still work.
+3. To monitor whether switching would activate a different system, set **NixOS configuration** to the matching `nixosConfigurations` name from that flake (for example, `vm`). Leave it empty to disable this check.
+4. Enable the `Nix Status` plugin and add its widget to your bar.
 
 The widget uses Noctalia's built-in `snowflake` glyph by default. No logo files or template configuration are required. After upgrading a manifest, disable and re-enable the plugin if new settings do not appear.
 
 The panel's **Open Settings** button opens the plugin settings, whether or not a flake directory is already configured. When unconfigured, the update button is disabled and the widget tooltip says that flake updates are not configured; this is not shown as an update error.
 
-The widget shows whether the booted generation differs from the current system and whether the most recent input update changed any inputs. Click it to open controls that:
+The widget shows `↻` when the booted generation differs from the current system and `⇧` when the evaluated configured system differs from `/run/current-system`. These indicators can appear together. The logo separately reflects the most recent input-update status. Click the widget to open controls that:
 
 - Refresh the generation status.
 - Compare the booted and current system closures on demand.
+- Refresh the configured-system comparison.
 - Run a regular `nix flake update --flake FLAKE_DIR` against the configured flake.
+
+The configured-system check evaluates `nixosConfigurations.<name>.config.system.build.toplevel.outPath` and compares it with the resolved `/run/current-system` path. It runs at startup, every 15 minutes, when its configuration changes, on manual refresh, and after a successful flake input update. “Switch available” means those store paths differ; it does not claim that the target has been built or that switching will succeed.
 
 The update mutates that flake's `flake.lock` and reports input changes captured from the command output. It requires the `nix` command, network access, and write access to the flake directory. A second run with no newer inputs reports that all inputs are up to date.
 

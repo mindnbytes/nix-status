@@ -22,6 +22,8 @@ type Parser = {
     parseUpdateOutput: (output: string) -> { any },
 }
 
+type SuccessCallback = () -> ()
+
 local FLAKE_UPDATE_TIMEOUT_MS = 60000
 
 local function new(host: Host, stateKey: string, flakeDir: string?, parser: Parser)
@@ -63,7 +65,7 @@ local function new(host: Host, stateKey: string, flakeDir: string?, parser: Pars
         end
     end
 
-    local function update()
+    local function update(onSuccess: SuccessCallback?)
         if running then
             return
         end
@@ -116,6 +118,9 @@ local function new(host: Host, stateKey: string, flakeDir: string?, parser: Pars
                 state = #changedInputs == 0 and "current" or "updates",
                 changedInputs = changedInputs,
             })
+            if onSuccess ~= nil then
+                onSuccess()
+            end
         end, FLAKE_UPDATE_TIMEOUT_MS)
 
         if not started then

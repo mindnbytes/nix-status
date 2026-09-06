@@ -16,6 +16,7 @@ local function new(initialState)
     local commands = {}
     local startResults = {}
     local updateInterval = nil
+    local currentTimeMs = 0
 
     local state = {}
 
@@ -66,6 +67,10 @@ local function new(initialState)
         updateInterval = intervalMs
     end
 
+    function host.nowMs()
+        return currentTimeMs
+    end
+
     local fake = {
         host = host,
         commands = commands,
@@ -97,6 +102,10 @@ local function new(initialState)
 
     function fake.getUpdateInterval()
         return updateInterval
+    end
+
+    function fake.advanceTime(ms)
+        currentTimeMs += ms
     end
 
     return fake
