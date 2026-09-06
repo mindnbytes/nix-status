@@ -1,13 +1,36 @@
-local function new(host, stateKey, bootedSystem, currentSystem)
+--!strict
+
+type CommandResult = {
+    exitCode: number,
+    stdout: string,
+    stderr: string,
+    timedOut: boolean,
+}
+
+type Host = {
+    state: {
+        get: (key: string) -> any,
+        set: (key: string, value: any) -> (),
+    },
+    string: {
+        trim: (value: string) -> string,
+    },
+    runAsync: (argv: { string }, callback: (result: CommandResult) -> (), timeoutMs: number) -> boolean,
+}
+
+type StatusFields = { [string]: any }
+type SuccessCallback = () -> ()
+
+local function new(host: Host, stateKey: string, bootedSystem: string, currentSystem: string)
     local running = false
 
-    local function publish(state, fields)
-        local status = fields or {}
+    local function publish(state: string, fields: StatusFields?)
+        local status: StatusFields = fields or {}
         status.state = state
         host.state.set(stateKey, status)
     end
 
-    local function check(onSuccess)
+    local function check(onSuccess: SuccessCallback?)
         if running then
             return
         end
@@ -51,7 +74,7 @@ local function new(host, stateKey, bootedSystem, currentSystem)
                 return
             end
 
-            local paths = {}
+            local paths: { string } = {}
             for path in result.stdout:gmatch("[^\r\n]+") do
                 table.insert(paths, path)
             end

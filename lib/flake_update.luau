@@ -1,9 +1,33 @@
+--!strict
+
+type CommandResult = {
+    exitCode: number,
+    stdout: string,
+    stderr: string,
+    timedOut: boolean,
+}
+
+type Host = {
+    state: {
+        get: (key: string) -> any,
+        set: (key: string, value: any) -> (),
+    },
+    string: {
+        trim: (value: string) -> string,
+    },
+    runAsync: (argv: { string }, callback: (result: CommandResult) -> (), timeoutMs: number) -> boolean,
+}
+
+type Parser = {
+    parseUpdateOutput: (output: string) -> { any },
+}
+
 local FLAKE_UPDATE_TIMEOUT_MS = 60000
 
-local function new(host, stateKey, flakeDir, parser)
+local function new(host: Host, stateKey: string, flakeDir: string, parser: Parser)
     local running = false
 
-    local function publish(state, message)
+    local function publish(state: string, message: string?)
         host.state.set(stateKey, {
             state = state,
             message = message,

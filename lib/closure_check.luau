@@ -1,10 +1,41 @@
+--!strict
+
+type CommandResult = {
+    exitCode: number,
+    stdout: string,
+    stderr: string,
+    timedOut: boolean,
+    stdoutTruncated: boolean?,
+}
+
+type Host = {
+    state: {
+        set: (key: string, value: any) -> (),
+    },
+    runAsync: (argv: { string }, callback: (result: CommandResult) -> (), timeoutMs: number) -> boolean,
+}
+
+type Parser = {
+    clean: (output: string) -> string,
+    parse: (output: string) -> (string, { any }),
+}
+
+type StatusFields = { [string]: any }
+type SuccessCallback = () -> ()
+
 local CLOSURE_DIFF_TIMEOUT_MS = 60000
 
-local function new(host, stateKey, bootedSystem, currentSystem, parser)
+local function new(
+    host: Host,
+    stateKey: string,
+    bootedSystem: string,
+    currentSystem: string,
+    parser: Parser
+)
     local running = false
 
-    local function publish(state, fields)
-        local status = fields or {}
+    local function publish(state: string, fields: StatusFields?)
+        local status: StatusFields = fields or {}
         status.state = state
         host.state.set(stateKey, status)
     end
@@ -13,7 +44,7 @@ local function new(host, stateKey, bootedSystem, currentSystem, parser)
         publish("idle")
     end
 
-    local function compare(onSuccess)
+    local function compare(onSuccess: SuccessCallback?)
         if running then
             return
         end
