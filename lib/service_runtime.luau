@@ -1,7 +1,6 @@
 local BOOTED_SYSTEM = "/run/booted-system"
 local CURRENT_SYSTEM = "/run/current-system"
 local GENERATION_REFRESH_INTERVAL_MS = 60000
-local CLOSURE_DIFF_TIMEOUT_MS = 60000
 
 local function start(host, flakeDir, dependencies)
     local closureDiff = dependencies.closureDiff
@@ -9,76 +8,19 @@ local function start(host, flakeDir, dependencies)
     local requestKeys = dependencies.contracts.request
     local nix = dependencies.nix
     local running = false
-    local closureDiffRunning = false
-    local compareClosures
     local generation = dependencies.generationCheck.new(
         host,
         stateKeys.generationStatus,
         BOOTED_SYSTEM,
         CURRENT_SYSTEM
     )
-
-    local function publishClosureDiff(state, fields)
-        local status = fields or {}
-        status.state = state
-        host.state.set(stateKeys.closureDiffStatus, status)
-    end
-
-    function compareClosures(refreshGeneration)
-        if closureDiffRunning then
-            return
-        end
-
-        closureDiffRunning = true
-        publishClosureDiff("running")
-
-        local started = host.runAsync({
-            "nix",
-            "store",
-            "diff-closures",
-            BOOTED_SYSTEM,
-            CURRENT_SYSTEM,
-        }, function(result)
-            closureDiffRunning = false
-
-            if result.timedOut then
-                publishClosureDiff("error", {
-                    message = "Nix store closure comparison timed out",
-                })
-                return
-            end
-
-            if result.exitCode ~= 0 then
-                local message = closureDiff.clean(result.stderr)
-                if message == "" then
-                    message = closureDiff.clean(result.stdout)
-                end
-                if message == "" then
-                    message = "Nix store closure comparison failed"
-                end
-
-                publishClosureDiff("error", { message = message })
-                return
-            end
-
-            local output, lines = closureDiff.parse(result.stdout)
-            publishClosureDiff("ready", {
-                output = output,
-                lines = lines,
-                truncated = result.stdoutTruncated,
-            })
-            if refreshGeneration ~= false then
-                generation.check()
-            end
-        end, CLOSURE_DIFF_TIMEOUT_MS)
-
-        if not started then
-            closureDiffRunning = false
-            publishClosureDiff("error", {
-                message = "Could not start Nix store closure comparison",
-            })
-        end
-    end
+    local closure = dependencies.closureCheck.new(
+        host,
+        stateKeys.closureDiffStatus,
+        BOOTED_SYSTEM,
+        CURRENT_SYSTEM,
+        closureDiff
+    )
 
     local function publish(state, message)
         host.state.set(stateKeys.updateStatus, {
@@ -138,7 +80,7 @@ local function start(host, flakeDir, dependencies)
 
     -- A retained closure comparison may describe paths from before a switch or reboot.
     -- Clear it on service load and rebuild it after the initial generation check succeeds.
-    publishClosureDiff("idle")
+    closure.reset()
 
     -- Preserve completed update results, but do not retain checks whose callbacks were lost on reload.
     local existingStatus = host.state.get(stateKeys.updateStatus)
@@ -156,12 +98,12 @@ local function start(host, flakeDir, dependencies)
     end)
 
     host.state.watch(requestKeys.closureDiff, function(_)
-        compareClosures()
+        closure.compare(generation.check)
     end)
 
     -- Generation state is derived from /run and intentionally rebuilt on every service load.
     generation.check(function()
-        compareClosures(false)
+        closure.compare()
     end)
     host.setUpdateInterval(GENERATION_REFRESH_INTERVAL_MS)
 

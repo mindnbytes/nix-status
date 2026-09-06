@@ -1,3 +1,4 @@
+local closureCheck = require("../lib/closure_check")
 local closureDiff = require("../lib/closure_diff")
 local contracts = require("../lib/contracts")
 local fakeNoctalia = require("./fake_noctalia")
@@ -27,6 +28,7 @@ end
 
 local function startService(fake)
     return serviceRuntime.start(fake.host, "/flake", {
+        closureCheck = closureCheck,
         closureDiff = closureDiff,
         contracts = contracts,
         generationCheck = generationCheck,
