@@ -5,7 +5,7 @@ A minimal [Noctalia](https://github.com/noctalia-dev/noctalia-shell) plugin that
 ## Setup
 
 1. Copy this directory into your Noctalia plugins directory.
-2. Set `FLAKE_DIR` in `service.luau` to your flake directory.
+2. Set **Flake directory** in the plugin settings to the directory containing `flake.nix`. An empty setting disables input updates; generation checks and closure comparisons still work.
 3. Add the NixOS logo variants (`nix-logo.svg`, `nix-logo-updates.svg`, and `nix-logo-error.svg`) to your Noctalia templates, declare them in Noctalia's `config.toml`, then run `noctalia msg templates-apply`.
 4. Enable the `Nix Status` plugin and add its widget to your bar.
 

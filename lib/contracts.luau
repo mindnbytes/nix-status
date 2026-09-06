@@ -14,6 +14,7 @@ export type InputChange = {
 export type UpdateStatus =
     { state: "idle", message: nil? }
     | { state: "checking", message: nil? }
+    | { state: "unconfigured", message: string }
     | { state: "current", changedInputs: { InputChange } }
     | { state: "updates", changedInputs: { InputChange } }
     | { state: "error", message: string }

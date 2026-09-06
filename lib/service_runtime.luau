@@ -50,6 +50,7 @@ local function start(host, flakeDir, dependencies)
 
     return {
         update = generation.check,
+        configure = flake.configure,
     }
 end
 

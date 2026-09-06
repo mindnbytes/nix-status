@@ -212,6 +212,12 @@ local function render()
             text = "Run an update to check the flake inputs.",
         }))
 
+    elseif status.state == "unconfigured" then
+        table.insert(children, ui.label({
+            text = status.message,
+            color = "on_surface_variant",
+        }))
+
     elseif status.state == "checking" then
         table.insert(children, ui.label({
             text = "Updating flake inputs…",
@@ -268,7 +274,7 @@ local function render()
 
     table.insert(children, ui.button({
         text = "Update Flake Inputs",
-        enabled = not isChecking,
+        enabled = not isChecking and status ~= nil and status.state ~= "unconfigured",
         onClick = "onCheckClicked",
     }))
 

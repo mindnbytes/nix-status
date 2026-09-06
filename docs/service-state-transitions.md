@@ -141,6 +141,7 @@ Despite the historical `check` naming in request and function identifiers, this 
 ```luau
 { state = "idle", message = nil }
 { state = "checking", message = nil }
+{ state = "unconfigured", message = string }
 { state = "current", changedInputs = {} }
 
 {
@@ -158,13 +159,16 @@ Despite the historical `check` naming in request and function identifiers, this 
 
 ### Trigger
 
-A flake update starts when `check-request` changes.
+A flake update starts when `check-request` changes, provided a directory is configured. Missing configuration publishes `unconfigured` and never starts a command.
+
+Configuration changes are applied to the existing workflow, without re-registering watchers. When idle, a changed directory clears the previous result to `idle` (or `unconfigured` if cleared). During an update, the original command target and running guard are preserved. Once that command finishes, its result is discarded if configuration changed, and the status becomes `idle` or `unconfigured` for the new configuration. This also applies if the directory changes away and back while running. Setting the same directory has no effect.
 
 ### Transition table
 
 | Starting condition | Event/result | Published status | Other effects |
 | --- | --- | --- | --- |
-| Not running | Request arrives | `checking` | Sets the update running guard and starts a mutating update |
+| Not running, configured | Request arrives | `checking` | Sets the update running guard and starts a mutating update |
+| Not running, unconfigured | Request arrives | `unconfigured` with settings guidance | No command starts |
 | Running | Another request arrives | No change | Request is ignored |
 | Running | Command times out | `error` with timeout message | Releases the running guard |
 | Running | Command exits non-zero | `error` using trimmed stderr, then stdout, then fallback message | Releases the running guard |
@@ -176,9 +180,9 @@ A flake update starts when `check-request` changes.
 
 On service load:
 
-- a missing status becomes `idle`;
-- a retained `checking` status becomes `idle`, because its callback was lost;
-- `current`, `updates`, and `error` statuses are preserved.
+- with no configured directory, any retained status becomes `unconfigured`;
+- with a configured directory, a missing, `unconfigured`, or retained `checking` status becomes `idle`;
+- with a configured directory, `current`, `updates`, and `error` statuses are preserved.
 
 The update running guard is process-local and therefore starts as `false` after reload.
 
@@ -191,9 +195,9 @@ Unless deliberately changed and documented, the initial refactor should preserve
 3. Every callback path and every failure-to-start path releases its workflow's running guard.
 4. A generation refresh retains the previous visible result while indicating `refreshing`.
 5. Closure and update workflows replace their previous visible result with a running state.
-6. Completed update results survive service reloads.
+6. Completed update results survive service reloads when a directory is configured.
 7. Every retained closure result is cleared on service reload and rebuilt after a successful initial generation check.
-8. Interrupted update operations reset to idle after service reloads.
+8. Interrupted update operations reset to idle after service reloads, or unconfigured if no directory is configured.
 9. A successful manually requested closure comparison triggers a generation refresh; the automatic startup comparison does not.
 10. Error output preference remains workflow-specific as described above.
 11. Flake updates remain explicitly user-triggered and mutating.

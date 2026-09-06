@@ -24,8 +24,9 @@ type Parser = {
 
 local FLAKE_UPDATE_TIMEOUT_MS = 60000
 
-local function new(host: Host, stateKey: string, flakeDir: string, parser: Parser)
+local function new(host: Host, stateKey: string, flakeDir: string?, parser: Parser)
     local running = false
+    local configVersion = 0
 
     local function publish(state: string, message: string?)
         host.state.set(stateKey, {
@@ -34,10 +35,31 @@ local function new(host: Host, stateKey: string, flakeDir: string, parser: Parse
         })
     end
 
+    local function publishAvailable()
+        if flakeDir == nil or flakeDir == "" then
+            publish("unconfigured", "Configure a flake directory in plugin settings to enable input updates.")
+        else
+            publish("idle", nil)
+        end
+    end
+
     local function initialize()
         local existing = host.state.get(stateKey)
-        if existing == nil or existing.state == "checking" then
-            publish("idle", nil)
+        if flakeDir == nil or flakeDir == "" or existing == nil
+            or existing.state == "checking" or existing.state == "unconfigured" then
+            publishAvailable()
+        end
+    end
+
+    local function configure(path: string?)
+        if path == flakeDir then
+            return
+        end
+        flakeDir = path
+        configVersion += 1
+        -- Keep checking visible until the old command finishes; never allow overlapping updates.
+        if not running then
+            publishAvailable()
         end
     end
 
@@ -46,6 +68,13 @@ local function new(host: Host, stateKey: string, flakeDir: string, parser: Parse
             return
         end
 
+        local target = flakeDir
+        if target == nil or target == "" then
+            publishAvailable()
+            return
+        end
+
+        local startedVersion = configVersion
         running = true
         publish("checking", nil)
 
@@ -54,9 +83,14 @@ local function new(host: Host, stateKey: string, flakeDir: string, parser: Parse
             "flake",
             "update",
             "--flake",
-            flakeDir,
+            target,
         }, function(result)
             running = false
+
+            if startedVersion ~= configVersion then
+                publishAvailable()
+                return
+            end
 
             if result.timedOut then
                 publish("error", "Nix flake update timed out")
@@ -92,6 +126,7 @@ local function new(host: Host, stateKey: string, flakeDir: string, parser: Parse
 
     return {
         initialize = initialize,
+        configure = configure,
         update = update,
     }
 end
