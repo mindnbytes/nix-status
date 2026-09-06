@@ -9,89 +9,14 @@ local function start(host, flakeDir, dependencies)
     local requestKeys = dependencies.contracts.request
     local nix = dependencies.nix
     local running = false
-    local generationRunning = false
     local closureDiffRunning = false
     local compareClosures
-
-    local function publishGeneration(state, fields)
-        local status = fields or {}
-        status.state = state
-        host.state.set(stateKeys.generationStatus, status)
-    end
-
-    local function checkGeneration(onSuccess)
-        if generationRunning then
-            return
-        end
-
-        generationRunning = true
-
-        local existing = host.state.get(stateKeys.generationStatus)
-        if existing == nil then
-            publishGeneration("checking")
-        else
-            publishGeneration(existing.state, {
-                bootedPath = existing.bootedPath,
-                currentPath = existing.currentPath,
-                message = existing.message,
-                refreshing = true,
-            })
-        end
-
-        local started = host.runAsync({
-            "readlink",
-            "-f",
-            BOOTED_SYSTEM,
-            CURRENT_SYSTEM,
-        }, function(result)
-            generationRunning = false
-
-            if result.timedOut then
-                publishGeneration("error", {
-                    message = "Timed out while resolving NixOS system generations",
-                })
-                return
-            end
-
-            if result.exitCode ~= 0 then
-                local message = host.string.trim(result.stderr)
-                if message == "" then
-                    message = "Could not resolve NixOS system generations"
-                end
-
-                publishGeneration("error", { message = message })
-                return
-            end
-
-            local paths = {}
-            for path in result.stdout:gmatch("[^\r\n]+") do
-                table.insert(paths, path)
-            end
-
-            if #paths ~= 2 then
-                publishGeneration("error", {
-                    message = "Expected booted and current NixOS system paths",
-                })
-                return
-            end
-
-            publishGeneration(paths[1] == paths[2] and "current" or "different", {
-                bootedPath = paths[1],
-                currentPath = paths[2],
-            })
-
-            if onSuccess ~= nil then
-                onSuccess()
-            end
-        end, 5000)
-
-        if not started then
-            generationRunning = false
-            publishGeneration("error", {
-                message = "Could not start generation check",
-            })
-        end
-    end
+    local generation = dependencies.generationCheck.new(
+        host,
+        stateKeys.generationStatus,
+        BOOTED_SYSTEM,
+        CURRENT_SYSTEM
+    )
 
     local function publishClosureDiff(state, fields)
         local status = fields or {}
@@ -143,7 +68,7 @@ local function start(host, flakeDir, dependencies)
                 truncated = result.stdoutTruncated,
             })
             if refreshGeneration ~= false then
-                checkGeneration()
+                generation.check()
             end
         end, CLOSURE_DIFF_TIMEOUT_MS)
 
@@ -227,7 +152,7 @@ local function start(host, flakeDir, dependencies)
     end)
 
     host.state.watch(requestKeys.generationRefresh, function(_)
-        checkGeneration()
+        generation.check()
     end)
 
     host.state.watch(requestKeys.closureDiff, function(_)
@@ -235,13 +160,13 @@ local function start(host, flakeDir, dependencies)
     end)
 
     -- Generation state is derived from /run and intentionally rebuilt on every service load.
-    checkGeneration(function()
+    generation.check(function()
         compareClosures(false)
     end)
     host.setUpdateInterval(GENERATION_REFRESH_INTERVAL_MS)
 
     return {
-        update = checkGeneration,
+        update = generation.check,
     }
 end
 
