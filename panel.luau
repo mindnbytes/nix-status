@@ -1,23 +1,30 @@
-local status = nil
-local generationStatus = nil
-local closureDiffStatus = nil
+local contracts = require("./lib/contracts.luau")
+
+type UpdateStatus = contracts.UpdateStatus
+type GenerationStatus = contracts.GenerationStatus
+type ClosureDiffStatus = contracts.ClosureDiffStatus
+type InputChange = contracts.InputChange
+
+local status: UpdateStatus? = nil
+local generationStatus: GenerationStatus? = nil
+local closureDiffStatus: ClosureDiffStatus? = nil
 
 local function requestCheck()
-    local n = noctalia.state.get("check-request") or 0
-    noctalia.state.set("check-request", n + 1)
+    local n = noctalia.state.get(contracts.request.update) or 0
+    noctalia.state.set(contracts.request.update, n + 1)
 end
 
 local function requestGenerationRefresh()
-    local n = noctalia.state.get("generation-refresh-request") or 0
-    noctalia.state.set("generation-refresh-request", n + 1)
+    local n = noctalia.state.get(contracts.request.generationRefresh) or 0
+    noctalia.state.set(contracts.request.generationRefresh, n + 1)
 end
 
 local function requestClosureDiff()
-    local n = noctalia.state.get("closure-diff-request") or 0
-    noctalia.state.set("closure-diff-request", n + 1)
+    local n = noctalia.state.get(contracts.request.closureDiff) or 0
+    noctalia.state.set(contracts.request.closureDiff, n + 1)
 end
 
-local function closureChangeColor(change)
+local function closureChangeColor(change: contracts.ClosureChange?)
     if change == "increase" then
         return "error"
     elseif change == "decrease" then
@@ -27,7 +34,7 @@ local function closureChangeColor(change)
     return "on_surface"
 end
 
-local function inputChangeText(input)
+local function inputChangeText(input: InputChange)
     if input.kind == "added" then
         return "Added · " .. input.newDate, input.newRev
     elseif input.kind == "removed" then
@@ -88,7 +95,7 @@ local function render()
     end
 
     if closureDiffStatus ~= nil and closureDiffStatus.state ~= "idle" then
-        local output = closureDiffStatus.output or ""
+        local output = closureDiffStatus.state == "ready" and closureDiffStatus.output or ""
         local headerChildren = {
             ui.label({
                 text = "Closure Changes",
@@ -274,9 +281,9 @@ local function render()
 end
 
 function onOpen(_)
-    status = noctalia.state.get("status")
-    generationStatus = noctalia.state.get("generation-status")
-    closureDiffStatus = noctalia.state.get("closure-diff-status")
+    status = noctalia.state.get(contracts.state.updateStatus)
+    generationStatus = noctalia.state.get(contracts.state.generationStatus)
+    closureDiffStatus = noctalia.state.get(contracts.state.closureDiffStatus)
     render()
     requestGenerationRefresh()
 end
@@ -290,7 +297,7 @@ function onCompareClosuresClicked()
 end
 
 function onCopyClosureDiffClicked()
-    if closureDiffStatus ~= nil and closureDiffStatus.output ~= nil then
+    if closureDiffStatus ~= nil and closureDiffStatus.state == "ready" then
         noctalia.copyToClipboard(closureDiffStatus.output, "text/plain")
     end
 end
@@ -299,17 +306,17 @@ function onCheckClicked()
     requestCheck()
 end
 
-noctalia.state.watch("status", function(value)
+noctalia.state.watch(contracts.state.updateStatus, function(value)
     status = value
     render()
 end)
 
-noctalia.state.watch("generation-status", function(value)
+noctalia.state.watch(contracts.state.generationStatus, function(value)
     generationStatus = value
     render()
 end)
 
-noctalia.state.watch("closure-diff-status", function(value)
+noctalia.state.watch(contracts.state.closureDiffStatus, function(value)
     closureDiffStatus = value
     render()
 end)

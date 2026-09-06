@@ -5,6 +5,8 @@ local CLOSURE_DIFF_TIMEOUT_MS = 60000
 
 local function start(host, flakeDir, dependencies)
     local closureDiff = dependencies.closureDiff
+    local stateKeys = dependencies.contracts.state
+    local requestKeys = dependencies.contracts.request
     local nix = dependencies.nix
     local running = false
     local generationRunning = false
@@ -14,7 +16,7 @@ local function start(host, flakeDir, dependencies)
     local function publishGeneration(state, fields)
         local status = fields or {}
         status.state = state
-        host.state.set("generation-status", status)
+        host.state.set(stateKeys.generationStatus, status)
     end
 
     local function checkGeneration(onSuccess)
@@ -24,7 +26,7 @@ local function start(host, flakeDir, dependencies)
 
         generationRunning = true
 
-        local existing = host.state.get("generation-status")
+        local existing = host.state.get(stateKeys.generationStatus)
         if existing == nil then
             publishGeneration("checking")
         else
@@ -94,7 +96,7 @@ local function start(host, flakeDir, dependencies)
     local function publishClosureDiff(state, fields)
         local status = fields or {}
         status.state = state
-        host.state.set("closure-diff-status", status)
+        host.state.set(stateKeys.closureDiffStatus, status)
     end
 
     function compareClosures(refreshGeneration)
@@ -154,7 +156,7 @@ local function start(host, flakeDir, dependencies)
     end
 
     local function publish(state, message)
-        host.state.set("status", {
+        host.state.set(stateKeys.updateStatus, {
             state = state,
             message = message,
         })
@@ -197,7 +199,7 @@ local function start(host, flakeDir, dependencies)
 
             local output = result.stdout .. "\n" .. result.stderr
             local changedInputs = nix.parseUpdateOutput(output)
-            host.state.set("status", {
+            host.state.set(stateKeys.updateStatus, {
                 state = #changedInputs == 0 and "current" or "updates",
                 changedInputs = changedInputs,
             })
@@ -214,21 +216,21 @@ local function start(host, flakeDir, dependencies)
     publishClosureDiff("idle")
 
     -- Preserve completed update results, but do not retain checks whose callbacks were lost on reload.
-    local existingStatus = host.state.get("status")
+    local existingStatus = host.state.get(stateKeys.updateStatus)
     if existingStatus == nil or existingStatus.state == "checking" then
         publish("idle", nil)
     end
 
     -- Panel buttons send incrementing numbers here whenever clicked.
-    host.state.watch("check-request", function(_)
+    host.state.watch(requestKeys.update, function(_)
         checkUpdates()
     end)
 
-    host.state.watch("generation-refresh-request", function(_)
+    host.state.watch(requestKeys.generationRefresh, function(_)
         checkGeneration()
     end)
 
-    host.state.watch("closure-diff-request", function(_)
+    host.state.watch(requestKeys.closureDiff, function(_)
         compareClosures()
     end)
 

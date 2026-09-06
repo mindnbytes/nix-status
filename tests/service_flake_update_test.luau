@@ -1,4 +1,5 @@
 local closureDiff = require("../lib/closure_diff")
+local contracts = require("../lib/contracts")
 local fakeNoctalia = require("./fake_noctalia")
 local nix = require("../lib/nix")
 local serviceRuntime = require("../lib/service_runtime")
@@ -26,6 +27,7 @@ end
 local function startService(fake)
     return serviceRuntime.start(fake.host, FLAKE_DIR, {
         closureDiff = closureDiff,
+        contracts = contracts,
         nix = nix,
     })
 end

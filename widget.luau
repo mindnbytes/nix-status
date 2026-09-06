@@ -1,3 +1,8 @@
+local contracts = require("./lib/contracts.luau")
+
+type UpdateStatus = contracts.UpdateStatus
+type GenerationStatus = contracts.GenerationStatus
+
 local logos = {
     normal = noctalia.expandPath("~/.cache/noctalia/nix-logo.svg"),
     updates = noctalia.expandPath("~/.cache/noctalia/nix-logo-updates.svg"),
@@ -16,8 +21,8 @@ local function setLogo(state)
     barWidget.setImage(path, true, 28, 28)
 end
 
-local updateStatus = noctalia.state.get("status")
-local generationStatus = noctalia.state.get("generation-status")
+local updateStatus: UpdateStatus? = noctalia.state.get(contracts.state.updateStatus)
+local generationStatus: GenerationStatus? = noctalia.state.get(contracts.state.generationStatus)
 
 local function show()
     local updateState = updateStatus and updateStatus.state or "idle"
@@ -52,17 +57,17 @@ local function show()
 end
 
 function update()
-    updateStatus = noctalia.state.get("status")
-    generationStatus = noctalia.state.get("generation-status")
+    updateStatus = noctalia.state.get(contracts.state.updateStatus)
+    generationStatus = noctalia.state.get(contracts.state.generationStatus)
     show()
 end
 
-noctalia.state.watch("status", function(status)
+noctalia.state.watch(contracts.state.updateStatus, function(status)
     updateStatus = status
     show()
 end)
 
-noctalia.state.watch("generation-status", function(status)
+noctalia.state.watch(contracts.state.generationStatus, function(status)
     generationStatus = status
     show()
 end)
