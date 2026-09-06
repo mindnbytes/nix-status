@@ -1,6 +1,7 @@
 local testlib = require("./testlib")
 
 require("./config_test")
+require("./status_icon_test")
 require("./closure_diff_test")
 require("./nix_test")
 require("./service_generation_test")

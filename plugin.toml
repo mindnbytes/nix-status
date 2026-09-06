@@ -12,6 +12,13 @@ label_key = "settings.flake_dir.label"
 description_key = "settings.flake_dir.description"
 default = ""
 
+[[setting]]
+key = "use_themed_logos"
+type = "bool"
+label_key = "settings.use_themed_logos.label"
+description_key = "settings.use_themed_logos.description"
+default = false
+
 [[service]]
 id = "service"
 entry = "service.luau"
