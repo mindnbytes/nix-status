@@ -2,6 +2,7 @@ local closureCheck = require("../lib/closure_check")
 local closureDiff = require("../lib/closure_diff")
 local contracts = require("../lib/contracts")
 local fakeNoctalia = require("./fake_noctalia")
+local flakeUpdate = require("../lib/flake_update")
 local generationCheck = require("../lib/generation_check")
 local nix = require("../lib/nix")
 local serviceRuntime = require("../lib/service_runtime")
@@ -32,6 +33,7 @@ local function startService(fake)
         closureCheck = closureCheck,
         closureDiff = closureDiff,
         contracts = contracts,
+        flakeUpdate = flakeUpdate,
         generationCheck = generationCheck,
         nix = nix,
     })
