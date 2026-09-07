@@ -20,8 +20,13 @@ type TargetConfig =
     | { state: "configured", configuration: string }
     | { state: "invalid", message: string }
 
+type CurrentResolution =
+    { state: "ready", path: string }
+    | { state: "error", message: string }
+
 type Model = {
-    resolve: (currentResult: CommandResult, targetResult: CommandResult) -> any,
+    resolveCurrent: (currentResult: CommandResult) -> CurrentResolution,
+    resolveTarget: (currentPath: string, targetResult: CommandResult) -> any,
 }
 
 local CURRENT_TIMEOUT_MS = 5000
@@ -112,6 +117,13 @@ local function new(
                 return
             end
 
+            local current = model.resolveCurrent(currentResult)
+            if current.state == "error" then
+                running = false
+                host.state.set(stateKey, current)
+                return
+            end
+
             local installable = targetDir
                 .. "#nixosConfigurations."
                 .. configuration
@@ -120,6 +132,7 @@ local function new(
                 "nix",
                 "eval",
                 "--raw",
+                "--no-update-lock-file",
                 installable,
             }, function(targetResult)
                 if startedVersion ~= configVersion then
@@ -128,7 +141,7 @@ local function new(
                 end
 
                 running = false
-                host.state.set(stateKey, model.resolve(currentResult, targetResult))
+                host.state.set(stateKey, model.resolveTarget(current.path, targetResult))
             end, EVALUATION_TIMEOUT_MS)
 
             if not evaluationStarted then

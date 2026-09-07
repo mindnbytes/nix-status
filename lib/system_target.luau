@@ -12,6 +12,10 @@ export type Status =
     | { state: "different", currentPath: string, targetPath: string }
     | { state: "error", message: string }
 
+export type CurrentResolution =
+    { state: "ready", path: string }
+    | { state: "error", message: string }
+
 local function trim(value: string): string
     return value:match("^%s*(.-)%s*$") or ""
 end
@@ -35,7 +39,7 @@ local function storePath(output: string): string?
     return path
 end
 
-local function resolve(currentResult: CommandResult, targetResult: CommandResult): Status
+local function resolveCurrent(currentResult: CommandResult): CurrentResolution
     if currentResult.timedOut then
         return {
             state = "error",
@@ -57,6 +61,13 @@ local function resolve(currentResult: CommandResult, targetResult: CommandResult
         }
     end
 
+    return {
+        state = "ready",
+        path = currentPath,
+    }
+end
+
+local function resolveTarget(currentPath: string, targetResult: CommandResult): Status
     if targetResult.timedOut then
         return {
             state = "error",
@@ -93,6 +104,16 @@ local function resolve(currentResult: CommandResult, targetResult: CommandResult
     }
 end
 
+local function resolve(currentResult: CommandResult, targetResult: CommandResult): Status
+    local current = resolveCurrent(currentResult)
+    if current.state == "error" then
+        return current
+    end
+    return resolveTarget(current.path, targetResult)
+end
+
 return {
     resolve = resolve,
+    resolveCurrent = resolveCurrent,
+    resolveTarget = resolveTarget,
 }

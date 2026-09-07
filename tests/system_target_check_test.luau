@@ -40,12 +40,13 @@ end
 
 local function expectEvaluationCommand(command, flakeDir, name)
     t.expectEqual(command.timeoutMs, 60000)
-    t.expectEqual(#command.argv, 4)
+    t.expectEqual(#command.argv, 5)
     t.expectEqual(command.argv[1], "nix")
     t.expectEqual(command.argv[2], "eval")
     t.expectEqual(command.argv[3], "--raw")
+    t.expectEqual(command.argv[4], "--no-update-lock-file")
     t.expectEqual(
-        command.argv[4],
+        command.argv[5],
         flakeDir .. "#nixosConfigurations." .. name .. ".config.system.build.toplevel.outPath"
     )
 end
@@ -87,6 +88,38 @@ t.test("system target resolves current system before evaluating configured targe
     t.expectEqual(status.state, "different")
     t.expectEqual(status.currentPath, CURRENT_PATH)
     t.expectEqual(status.targetPath, TARGET_PATH)
+end)
+
+t.test("system target current-system errors skip evaluation and allow retry", function()
+    local cases = {
+        {
+            result = result({ timedOut = true }),
+            message = "Timed out while resolving the current NixOS system",
+        },
+        {
+            result = result({ exitCode = 1, stderr = "readlink failed" }),
+            message = "readlink failed",
+        },
+        {
+            result = result({ stdout = "/tmp/not-a-store-path" }),
+            message = "Current NixOS system did not resolve to one Nix store path",
+        },
+    }
+
+    for _, case in ipairs(cases) do
+        local fake = fakeNoctalia.new()
+        local check = workflow(fake, FLAKE_DIR, configured())
+        check.initialize()
+        fake.complete(1, case.result)
+
+        t.expectEqual(#fake.commands, 1)
+        t.expectEqual(fake.getState("system-target-status").state, "error")
+        t.expectEqual(fake.getState("system-target-status").message, case.message)
+
+        check.refresh()
+        t.expectEqual(#fake.commands, 2)
+        expectCurrentCommand(fake.commands[2])
+    end
 end)
 
 t.test("system target discards refresh requests while either command is running", function()
