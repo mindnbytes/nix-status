@@ -54,6 +54,8 @@ nix shell nixpkgs#luau -c ./scripts/test
 
 If `luau` is already available in your environment, run `./scripts/test` directly.
 
-## Branding
+## License
 
-The optional templates adapt the NixOS logo to Noctalia palette roles. See [asset attribution](assets/ATTRIBUTION.md) and the bundled [CC BY 4.0 license](assets/CC-BY-4.0.txt). The plugin is not an official NixOS product. Follow the official [NixOS branding guidance](https://nixos.org/branding/) when reusing the artwork.
+The plugin source code is available under the [MIT License](LICENSE).
+
+The optional NixOS logo templates are licensed separately under CC BY 4.0. See [asset attribution](assets/ATTRIBUTION.md) and the bundled [artwork license](assets/CC-BY-4.0.txt). The plugin is not an official NixOS product. Follow the official [NixOS branding guidance](https://nixos.org/branding/) when reusing the artwork.
