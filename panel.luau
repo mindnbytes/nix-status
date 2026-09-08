@@ -197,12 +197,14 @@ local function render()
     }, {
         ui.button({
             text = "Refresh Generation",
+            flexGrow = 1,
             variant = "outline",
             enabled = not isGenerationChecking,
             onClick = "onRefreshClicked",
         }),
         ui.button({
             text = isComparingClosures and "Comparing…" or "Compare Closures",
+            flexGrow = 1,
             enabled = not isComparingClosures,
             onClick = "onCompareClosuresClicked",
         }),
@@ -329,11 +331,13 @@ local function render()
     }, {
         ui.button({
             text = "Update Flake Inputs",
+            flexGrow = 1,
             enabled = not isChecking and status ~= nil and status.state ~= "unconfigured",
             onClick = "onCheckClicked",
         }),
         ui.button({
             text = "Open Settings",
+            flexGrow = 1,
             variant = "outline",
             onClick = "onSettingsClicked",
         }),
