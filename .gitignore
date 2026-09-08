@@ -10,3 +10,6 @@ Thumbs.db
 # Local logs and temporary files
 *.log
 *.tmp
+
+# Noctalia API definitions fetched for local editor tooling
+noctalia.d.luau
