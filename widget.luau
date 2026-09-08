@@ -88,5 +88,5 @@ noctalia.state.watch(contracts.state.systemTargetStatus, function(status)
 end)
 
 function onClick()
-    noctalia.togglePanel("local/nix-status:details")
+    noctalia.togglePanel("mindnbytes/nix-status:details")
 end

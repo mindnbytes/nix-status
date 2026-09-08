@@ -1,9 +1,13 @@
-id = "local/nix-status"
+id = "mindnbytes/nix-status"
 name = "Nix Status"
 version = "0.2.0"
 plugin_api = 30
 author = "mindnbytes"
-dependencies = ["nix"]
+license = "MIT"
+icon = "package"
+description = "Monitor NixOS generations, compare system closures, and update configured flake inputs."
+tags = ["bar", "panel", "service", "indicator", "system", "utility", "nixos"]
+dependencies = ["nix", "readlink"]
 
 [[setting]]
 key = "flake_dir"
